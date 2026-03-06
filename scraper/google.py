@@ -423,26 +423,34 @@ def _extract_reviews_from_dom(page, saved_ids: set) -> list[dict]:
 
 def _cleanup_heavy_elements(page):
     """Remove heavy child elements (images etc.) but keep review blocks."""
-    page.evaluate(
-        """() => {
-        document.querySelectorAll('[data-review-id] img, [data-review-id] picture, [data-review-id] svg').forEach(el => el.remove());
-        document.querySelectorAll('canvas, .Tya61d, .p0Aybe, .cYrDcb').forEach(el => el.remove());
-    }"""
-    )
+    try:
+        page.evaluate(
+            """() => {
+            document.querySelectorAll('[data-review-id] img, [data-review-id] picture, [data-review-id] svg').forEach(el => el.remove());
+            document.querySelectorAll('canvas, .Tya61d, .p0Aybe, .cYrDcb').forEach(el => el.remove());
+        }""",
+            timeout=10000,
+        )
+    except Exception:
+        pass
 
 
 def _scroll_reviews(page):
     """Scroll the reviews container to load more."""
-    page.evaluate(
-        """() => {
-        const els = document.querySelectorAll('div.m6QErb');
-        for (const el of els) {
-            if (el.scrollHeight > el.clientHeight && el.scrollHeight > 500) {
-                el.scrollTop = el.scrollHeight;
+    try:
+        page.evaluate(
+            """() => {
+            const els = document.querySelectorAll('div.m6QErb');
+            for (const el of els) {
+                if (el.scrollHeight > el.clientHeight && el.scrollHeight > 500) {
+                    el.scrollTop = el.scrollHeight;
+                }
             }
-        }
-    }"""
-    )
+        }""",
+            timeout=10000,
+        )
+    except Exception:
+        pass  # Timeout = page might be unresponsive, continue loop
 
 
 def _try_stage1_recovery(page, progress_callback=None, count: int = 0) -> bool:
@@ -521,7 +529,12 @@ def _collect_all_reviews(
     last_new_time = time.time()
 
     for i in range(GOOGLE_MAX_SCROLLS):
-        _scroll_reviews(page)
+        try:
+            _scroll_reviews(page)
+        except Exception as scroll_err:
+            if progress_callback:
+                progress_callback(len(all_reviews), f"スクロールエラー: {scroll_err}")
+            break
         time.sleep(GOOGLE_SCROLL_INTERVAL)
 
         if time.time() - last_new_time > GOOGLE_STALL_SECONDS:
