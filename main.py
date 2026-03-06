@@ -53,6 +53,7 @@ def get_job(job_id: str):
         "message": job.get("message", ""),
         "created_at": job.get("created_at", ""),
         "review_count": job.get("review_count", len(job.get("reviews", []))),
+        "duration": job.get("duration"),
     }
     if job.get("status") in ("done", "failed"):
         if job.get("status") == "done":
@@ -91,6 +92,8 @@ def get_job_logs(job_id: str):
 
 
 async def _run_scrape(job_id: str, url: str, source: Source):
+    import time as _time
+    _start = _time.time()
     try:
         def progress_callback(count: int, message: str):
             db.update_job(job_id, progress=count, message=message, review_count=count)
@@ -104,10 +107,12 @@ async def _run_scrape(job_id: str, url: str, source: Source):
         # Save reviews to Firestore subcollection
         db.save_reviews(job_id, reviews)
         # Update in-memory + Firestore doc
-        db.update_job(job_id, status="done", progress=len(reviews),
+        duration = int(_time.time() - _start)
+        db.update_job(job_id, status="done", progress=len(reviews), duration=duration,
                       message=f"完了: {len(reviews)}件取得", reviews=reviews)
     except Exception as e:
-        db.update_job(job_id, status="failed", error=str(e),
+        duration = int(_time.time() - _start)
+        db.update_job(job_id, status="failed", error=str(e), duration=duration,
                       message=f"エラー: {str(e)}")
 
 
