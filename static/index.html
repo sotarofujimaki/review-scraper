@@ -375,6 +375,7 @@ document.getElementById('url').addEventListener('input',function(){if(this.value
 function esc(s){return s?s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):''}
 function extractName(u){if(!u)return'不明';try{let m=u.match(/\/maps\/place\/([^/@]+)/);if(m)return decodeURIComponent(m[1].replace(/\+/g,' '));m=u.match(/Reviews-([^-]+(?:-[^-]+)*?)-[A-Za-z]/);if(m)return decodeURIComponent(m[1].replace(/_/g,' '))}catch{}return u.substring(0,40)+'…'}
 function fmtDur(s){if(!s&&s!==0)return'';if(s<60)return s+'秒';return Math.floor(s/60)+'分'+(s%60?s%60+'秒':'')}
+function fmtCost(sec){if(!sec)return'';const usd=sec*0.0000530;if(usd<0.01)return'$'+usd.toFixed(4);return'$'+usd.toFixed(3)}
 function fmtElapsed(ms){if(!ms||ms<0)return'';const s=Math.floor(ms/1000);return fmtDur(s)}
 function fmtTime(iso){const d=new Date(iso);return d.toLocaleDateString('ja-JP',{month:'numeric',day:'numeric'})+' '+d.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})}
 function srcLabel(s){return s==='google'?'Google Maps':'TripAdvisor'}
@@ -421,7 +422,7 @@ function render(){
     const stLbl={running:'実行中',done:'完了',failed:'失敗'}[st]||st;
     let statsHtml='';
     if(j.count)statsHtml+=j.count+'件';
-    if(st==='done'&&j.duration!=null){statsHtml+=(statsHtml?' · ':'')+'所要 '+fmtDur(j.duration)}
+    if(st==='done'&&j.duration!=null){statsHtml+=(statsHtml?' · ':'')+'所要 '+fmtDur(j.duration);const c=fmtCost(j.duration);if(c)statsHtml+=' · '+c}
     if(st==='running'){const el=fmtElapsed(Date.now()-new Date(j.time).getTime());statsHtml+=(statsHtml?' · ':'')+el+'経過'}
     if(st==='failed'&&j.duration!=null){statsHtml+=(statsHtml?' · ':'')+fmtDur(j.duration)}
 
