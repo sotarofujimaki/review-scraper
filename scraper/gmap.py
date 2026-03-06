@@ -68,7 +68,7 @@ def _resolve_share_url_in_browser(page, url: str) -> str:
     if "share.google" not in url:
         return url
     try:
-        page.goto(url, wait_until="domcontentloaded", timeout=15000)
+        page.goto(url, wait_until="domcontentloaded", timeout=30000)
         page.wait_for_timeout(3000)
         final_url = page.url
         if "google.com/maps" in final_url or "google.co.jp/maps" in final_url:
@@ -151,17 +151,17 @@ def _warm_up_session(page, session):
         if not check["missing"]:
             return True  # Already has required cookies
 
-        page.goto("https://www.google.co.jp/", wait_until="domcontentloaded", timeout=15000)
+        page.goto("https://www.google.co.jp/", wait_until="domcontentloaded", timeout=30000)
         time.sleep(3)
         check2 = _check_cookies(session)
-        page.goto("https://www.google.com/maps", wait_until="domcontentloaded", timeout=15000)
+        page.goto("https://www.google.com/maps", wait_until="domcontentloaded", timeout=30000)
         time.sleep(3)
 
         # Verify cookies were set
         check = _check_cookies(session)
         if check["missing"]:
             # Try one more time with longer wait
-            page.goto("https://www.google.co.jp/search?q=maps", wait_until="domcontentloaded", timeout=15000)
+            page.goto("https://www.google.co.jp/search?q=maps", wait_until="domcontentloaded", timeout=30000)
             time.sleep(3)
             check = _check_cookies(session)
 
@@ -288,7 +288,7 @@ def _start_session(url: str, progress_callback=None):
         try:
             referer = generate_convincing_referer(url)
             page.goto(
-                url, referer=referer, wait_until="domcontentloaded", timeout=30000
+                url, referer=referer, wait_until="domcontentloaded", timeout=90000
             )
         except Exception as e:
             last_error = f"ページ読み込み失敗: {e}"
