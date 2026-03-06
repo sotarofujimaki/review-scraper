@@ -442,7 +442,7 @@ def _scroll_reviews(page):
     )
 
 
-def _collect_all_reviews(page, progress_callback=None) -> list[dict]:
+def _collect_all_reviews(page, progress_callback=None, review_save_callback=None) -> list[dict]:
     """Scroll through all reviews and collect them incrementally."""
     saved_ids: set = set()
     all_reviews: list[dict] = []

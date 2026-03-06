@@ -51,10 +51,19 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                 if pcb:
                     pcb(0, "トップページOK、レストランページへ遷移中...")
 
-                # Navigate to first page of reviews
+                # Navigate to first page of reviews (all languages)
                 page_url = base.format("")
+                if "?" in page_url:
+                    page_url += "&filterLang=ALL"
+                else:
+                    page_url += "?filterLang=ALL"
                 page.goto(page_url, wait_until="domcontentloaded", timeout=30000)
-                time.sleep(5)
+                # Wait for cards to render
+                for _w in range(10):
+                    time.sleep(1)
+                    if page.query_selector('[data-automation="reviewCard"]'):
+                        break
+                time.sleep(2)
 
                 html2 = page.content()
                 if "captcha-delivery" in html2:
@@ -128,6 +137,10 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                     # Next page
                     offset = f"-or{page_num * 15}"
                     next_url = base.format(offset)
+                    if "?" in next_url:
+                        next_url += "&filterLang=ALL"
+                    else:
+                        next_url += "?filterLang=ALL" 
                     if pcb:
                         pcb(len(all_reviews), f"ページ{page_num + 1}へ遷移中... ({next_url[-30:]})")
                     try:
