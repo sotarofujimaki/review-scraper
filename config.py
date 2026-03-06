@@ -29,6 +29,11 @@ TOR_SOCKS_PORT = 9050
 TOR_PROXY_URL = f"socks5://{TOR_SOCKS_HOST}:{TOR_SOCKS_PORT}"
 TOR_CIRCUIT_WAIT = 3            # Seconds to wait after SIGHUP
 
+
+# --- Blocked ad/tracking domains ---
+BLOCKED_DOMAINS_GOOGLE = {"doubleclick.net", "googlesyndication.com", "googleadservices.com", "google-analytics.com", "googletagmanager.com"}
+BLOCKED_DOMAINS_TA = {"doubleclick.net", "googlesyndication.com", "google-analytics.com", "googletagmanager.com", "facebook.com", "facebook.net"}
+
 # --- Paths ---
 GOOGLE_PROFILE_BASE = os.environ.get("GOOGLE_PROFILE_BASE", "/tmp/google-profiles")
 

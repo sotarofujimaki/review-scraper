@@ -10,6 +10,7 @@ from scrapling.fetchers import StealthySession
 from scrapling.engines.toolbelt.fingerprints import generate_convincing_referer
 
 from config import (
+    BLOCKED_DOMAINS_GOOGLE,
     GOOGLE_PAGE_TIMEOUT_MS,
     GOOGLE_WARMUP_TIMEOUT_MS,
     GOOGLE_STALL_SECONDS,
@@ -218,7 +219,13 @@ def _start_session(url: str, progress_callback=None, proxy: str | None = None):
             session_kwargs = dict(
                 headless=True,
                 locale="ja-JP",
+                timezone_id="Asia/Tokyo",
                 user_data_dir=profile_dir,
+                disable_resources=True,
+                hide_canvas=True,
+                block_webrtc=True,
+                google_search=True,
+                blocked_domains=BLOCKED_DOMAINS_GOOGLE,
             )
             if effective_proxy:
                 session_kwargs["proxy"] = {"server": effective_proxy}
@@ -235,11 +242,6 @@ def _start_session(url: str, progress_callback=None, proxy: str | None = None):
             session.context.pages[0]
             if session.context.pages
             else session.context.new_page()
-        )
-
-        page.route(
-            "**/*.{png,jpg,jpeg,gif,webp,svg,woff,woff2,ttf,mp4,mp3}",
-            lambda route: route.abort(),
         )
 
         if progress_callback:
@@ -328,6 +330,8 @@ def _start_session(url: str, progress_callback=None, proxy: str | None = None):
         except Exception:
             pass
 
+    # Partial success: return collected reviews even if session failed
+    # (RuntimeError は上位の _collect_all_reviews → scrape_google_reviews で処理)
     raise RuntimeError(f"Google Maps レビュー取得失敗 ({MAX_RETRIES}回リトライ済み): {last_error}")
 
 
@@ -406,11 +410,11 @@ def _scroll_reviews(page):
     )
 
 
-def _try_stage1_recovery(page, progress_callback=None) -> bool:
+def _try_stage1_recovery(page, progress_callback=None, count: int = 0) -> bool:
     """Stage 1: ページリフレッシュで回復試行。成功したらTrue。"""
     try:
         if progress_callback:
-            progress_callback(0, "Stage 1: ページリフレッシュで回復試行中...")
+            progress_callback(count, "Stage 1: ページリフレッシュで回復試行中...")
         page.reload(wait_until="domcontentloaded", timeout=30000)
         time.sleep(8)
         _click_reviews_tab(page)
@@ -423,11 +427,11 @@ def _try_stage1_recovery(page, progress_callback=None) -> bool:
         return False
 
 
-def _try_stage2_recovery(session, url: str, progress_callback=None):
+def _try_stage2_recovery(session, url: str, progress_callback=None, count: int = 0):
     """Stage 2: 新プロファイルで再起動（同IP）。成功時に (page, new_session) を返す。失敗時は (None, None)。"""
     try:
         if progress_callback:
-            progress_callback(0, "Stage 2: 新プロファイルで回復試行中...")
+            progress_callback(count, "Stage 2: 新プロファイルで回復試行中...")
         try:
             session.close()
         except Exception:
@@ -438,11 +442,11 @@ def _try_stage2_recovery(session, url: str, progress_callback=None):
         return None, None
 
 
-def _try_stage3_recovery(session, url: str, progress_callback=None):
+def _try_stage3_recovery(session, url: str, progress_callback=None, count: int = 0):
     """Stage 3: Tor回線更新 + 新プロファイルで再起動（別IP）。成功時に (page, new_session) を返す。失敗時は (None, None)。"""
     try:
         if progress_callback:
-            progress_callback(0, "Stage 3: Tor回線更新 + 新プロファイルで回復試行中...")
+            progress_callback(count, "Stage 3: Tor回線更新 + 新プロファイルで回復試行中...")
         tor_ok = tor_utils.renew_circuit()
         proxy = TOR_PROXY_URL if tor_ok else None
         try:
@@ -490,33 +494,18 @@ def _collect_all_reviews(
             # --- スタル検知: 段階的回復を試みる ---
             if recovery_stage == 0:
                 # Stage 1: ページリフレッシュ
-                recovered = _try_stage1_recovery(page, progress_callback)
+                recovered = _try_stage1_recovery(page, progress_callback, count=len(saved_ids))
                 recovery_stage = 1
                 if recovered:
                     last_new_time = time.time()
                     no_new = 0
                     continue
-                # Stage 1失敗 → 即Stage 2へ
-
-            if recovery_stage == 1:
-                # Stage 2: 新プロファイル（同IP）
-                new_page, new_session = _try_stage2_recovery(session, url, progress_callback)
+                # Stage 1失敗 → Stage 2スキップ、即Stage 3へ（同IP無意味）
                 recovery_stage = 2
-                if new_page is not None:
-                    page = new_page
-                    session = new_session
-                    recovered_reviews = _extract_reviews_from_dom(page, saved_ids)
-                    all_reviews.extend(recovered_reviews)
-                    if review_save_callback and recovered_reviews:
-                        review_save_callback(recovered_reviews)
-                    last_new_time = time.time()
-                    no_new = 0
-                    continue
-                # Stage 2失敗 → 即Stage 3へ
 
-            if recovery_stage == 2:
+            if recovery_stage == 2:  # Stage 2はスキップ
                 # Stage 3: Tor + 新プロファイル（別IP）
-                new_page, new_session = _try_stage3_recovery(session, url, progress_callback)
+                new_page, new_session = _try_stage3_recovery(session, url, progress_callback, count=len(saved_ids))
                 recovery_stage = 3
                 if new_page is not None:
                     page = new_page

@@ -10,6 +10,7 @@ import time
 from scrapling.fetchers import StealthyFetcher
 
 from config import (
+    BLOCKED_DOMAINS_TA,
     TA_PAGE_TIMEOUT_MS,
     TA_REVIEWS_PER_PAGE,
     TA_MAX_PAGES,
@@ -181,15 +182,34 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
         try:
             action_fn = make_action(base_url, progress_callback, result, start_time)
 
+            # 試行1: 直接 + google_search=True
+            # 試行2: 直接 + google_search=False (リファラーなし)
+            # 試行3-5: Tor + google_search=True
+            if attempt == 0:
+                use_google_search = True
+                use_proxy = None
+            elif attempt == 1:
+                use_google_search = False
+                use_proxy = None
+            else:
+                use_google_search = True
+                use_proxy = TOR_PROXY_URL if is_tor_available() else None
+
             fetch_kwargs = dict(
                 headless=True,
                 network_idle=True,
-                google_search=True,
+                google_search=use_google_search,
                 page_action=action_fn,
                 wait=5,
+                hide_canvas=True,
+                block_webrtc=True,
+                disable_resources=True,
+                timezone_id="Asia/Tokyo",
+                locale="ja-JP",
+                blocked_domains=BLOCKED_DOMAINS_TA,
             )
-            if attempt > 0 and is_tor_available():
-                fetch_kwargs["proxy"] = TOR_PROXY_URL
+            if use_proxy:
+                fetch_kwargs["proxy"] = use_proxy
                 if progress_callback:
                     progress_callback(0, "Tor経由で接続中...")
 
