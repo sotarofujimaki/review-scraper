@@ -195,6 +195,7 @@
             } else if (data.status === 'done') {
                 clearInterval(pollTimer); pollTimer = null;
                 currentReviews = data.reviews || [];
+                saveReviewsLocal(jobId, currentReviews);
                 showResults(currentReviews);
                 const elapsed = getElapsed(jobId);
                 setStatus('success', `✅ ${currentReviews.length}件の口コミを取得しました${elapsed ? '（' + formatDuration(elapsed) + '）' : ''}`);
@@ -273,10 +274,26 @@
         setHistoryData(h);
     }
     function removeHistory(jobId) {
+        removeReviewsLocal(jobId);
+        // original below
         setHistoryData(getHistory().filter(x => x.jobId !== jobId));
     }
     function clearHistory() {
-        if (confirm('履歴をすべて削除しますか？')) setHistoryData([]);
+        if (confirm('履歴をすべて削除しますか？')) {
+            getHistory().forEach(x => removeReviewsLocal(x.jobId));
+            setHistoryData([]);
+        }
+    }
+
+    // Reviews localStorage cache
+    function saveReviewsLocal(jobId, reviews) {
+        try { localStorage.setItem('reviews_' + jobId, JSON.stringify(reviews)); } catch {}
+    }
+    function loadReviewsLocal(jobId) {
+        try { return JSON.parse(localStorage.getItem('reviews_' + jobId) || 'null'); } catch { return null; }
+    }
+    function removeReviewsLocal(jobId) {
+        try { localStorage.removeItem('reviews_' + jobId); } catch {}
     }
 
     function renderHistory() {
@@ -332,7 +349,15 @@
             const res = await fetch('/jobs/' + jobId);
             const data = await res.json();
             if (data.error && data.error === 'Job not found') {
-                setStatus('error', 'このジョブはサーバー上に残っていません（インスタンス再起動済み）');
+                // Try localStorage fallback
+                const local = loadReviewsLocal(jobId);
+                if (local && local.length) {
+                    currentReviews = local;
+                    showResults(currentReviews);
+                    setStatus('success', '✅ ' + local.length + '件（ローカルキャッシュから読み込み）');
+                } else {
+                    setStatus('error', 'データが見つかりません（サーバー再起動済み・ローカルキャッシュなし）');
+                }
                 return;
             }
             if (data.status === 'done' && data.reviews) {
