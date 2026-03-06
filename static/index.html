@@ -324,7 +324,7 @@
     <script>
     let currentSource = 'gmap';
     let currentJobId = null;
-    let pollTimer = null;
+    let pollTimers = {};  // jobId -> intervalId
     let currentReviews = [];
 
     // Input
@@ -380,7 +380,7 @@
         const url = urlInput.value.trim();
         if (!url) { setBanner('error','⚠️','URLを入力してください'); return; }
         const btn = document.getElementById('scrapeBtn');
-        btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 取得中...';
+        btn.innerHTML = '<span class="spin"></span> 送信中...';
         setBanner('loading','<span class="spin"></span>','ジョブを開始しています...');
         document.getElementById('results').style.display = 'none';
         try {
@@ -393,6 +393,8 @@
             currentJobId = data.job_id;
             saveToHistory(data.job_id, url, currentSource);
             startPolling(data.job_id);
+            resetBtn();
+            urlInput.value = ''; inputWrap.classList.remove('has-value');
         } catch(e) { setBanner('error','⚠️','エラー: '+e.message); resetBtn(); }
     }
     function resetBtn() {
@@ -401,7 +403,10 @@
     }
 
     // Polling
-    function startPolling(jobId) { if(pollTimer) clearInterval(pollTimer); pollTimer = setInterval(()=>pollJob(jobId), 2000); }
+    function startPolling(jobId) {
+        if(pollTimers[jobId]) clearInterval(pollTimers[jobId]);
+        pollTimers[jobId] = setInterval(()=>pollJob(jobId), 2000);
+    }
     async function pollJob(jobId) {
         try {
             const res = await fetch('/jobs/'+jobId);
@@ -411,7 +416,7 @@
                 setBanner('loading','<span class="spin"></span>', data.message + '（' + data.review_count + '件）' + (el ? ' — ' + formatDuration(el) : ''));
                 updateHistory(jobId, {status:'running', count:data.review_count, message:data.message});
             } else if (data.status === 'done') {
-                clearInterval(pollTimer); pollTimer = null;
+                clearInterval(pollTimers[jobId]); delete pollTimers[jobId];
                 currentReviews = data.reviews || [];
                 showResults(currentReviews);
                 const el = getElapsed(jobId);
@@ -420,7 +425,7 @@
                 updateHistory(jobId, {status:'done', count:currentReviews.length, duration:el, finishedAt:new Date().toISOString()});
                 resetBtn();
             } else if (data.status === 'failed') {
-                clearInterval(pollTimer); pollTimer = null;
+                clearInterval(pollTimers[jobId]); delete pollTimers[jobId];
                 setBanner('error','❌', data.error || data.message || '失敗');
                 updateHistory(jobId, {status:'failed', count:0, error:data.error||data.message, finishedAt:new Date().toISOString()});
                 resetBtn();
@@ -574,8 +579,7 @@
                     currentJobId = item.jobId;
                     startPolling(item.jobId);
                     setBanner('loading','<span class="spin"></span>', item.message||'実行中...');
-                    document.getElementById('scrapeBtn').disabled = true;
-                    document.getElementById('scrapeBtn').innerHTML = '<span class="spin"></span> 取得中...';
+                    // Keep button enabled for additional jobs
                     break;
                 }
             }
