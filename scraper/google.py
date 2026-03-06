@@ -434,13 +434,25 @@ def _cleanup_heavy_elements(page):
 
 
 def _scroll_reviews(page):
-    """Scroll the reviews container using mouse.wheel (human-like)."""
+    """Scroll the reviews container using combined approach."""
     try:
-        # Focus on the scrollable review panel first
+        # Method 1: Find scrollable container and use scrollTop + mouse.wheel
         panel = page.query_selector('div.m6QErb.DxyBCb')
         if panel:
-            panel.hover()
-        page.mouse.wheel(0, 800)
+            # First set scrollTop via JS (reliable in headless)
+            page.evaluate("""() => {
+                const el = document.querySelector('div.m6QErb.DxyBCb');
+                if (el) el.scrollTop = el.scrollHeight;
+            }""")
+            # Then also fire mouse.wheel for human-like behavior
+            try:
+                panel.hover()
+                page.mouse.wheel(0, 600)
+            except Exception:
+                pass
+        else:
+            # Fallback: wheel anywhere
+            page.mouse.wheel(0, 800)
     except Exception:
         pass
 
