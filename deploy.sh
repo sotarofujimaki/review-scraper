@@ -12,7 +12,7 @@ echo "🚀 デプロイ開始..."
 gcloud run deploy review-scraper \
   --source . \
   --region asia-northeast1 \
-  --memory 2Gi \
+  --memory 4Gi \
   --cpu 2 \
   --timeout 1800 \
   --allow-unauthenticated \
