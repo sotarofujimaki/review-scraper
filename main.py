@@ -180,7 +180,7 @@ async def _run_scrape(job_id: str, url: str, source: Source):
         # 失敗時にインスタンス切り替えリトライ（同じjob_id、最大1回）
         job = db.get_job(job_id)
         retry_count = job.get("retry_count", 0) if job else 0
-        if retry_count < 1:
+        if retry_count < 2:
             try:
                 import httpx, os
                 db.update_job(job_id, status=JobStatus.running, retry_count=retry_count + 1,
