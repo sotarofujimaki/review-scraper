@@ -446,7 +446,7 @@ function render(){
       </div>
       <div class="job-actions">
         <span class="time-label">${fmtTime(j.time)}</span>
-        ${st==='running'?`<button class="abtn del" onclick="cancelJob('${j.id}')">⏹停止</button>`:''}<button class="abtn" onclick="showPanel('${j.id}','logs')">📋ログ</button>${st==='done'?`<button class="abtn" onclick="showPanel('${j.id}','results')">結果</button><button class="abtn dl" onclick="dlCsv('${j.id}')">CSV</button><button class="abtn dl" onclick="dlJson('${j.id}')">JSON</button>`:''}
+        ${st==='running'?`<button class="abtn del" onclick="event.stopPropagation();cancelJob('${j.id}')">⏹停止</button>`:''}<button class="abtn" onclick="showPanel('${j.id}','logs')">📋ログ</button>${st==='done'?`<button class="abtn" onclick="showPanel('${j.id}','results')">結果</button><button class="abtn dl" onclick="dlCsv('${j.id}')">CSV</button><button class="abtn dl" onclick="dlJson('${j.id}')">JSON</button>`:''}
         <button class="abtn del" onclick="removeJob('${j.id}')">削除</button>
       </div>
       <div class="job-detail ${detailOpen}" id="detail-${j.id}">
