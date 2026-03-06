@@ -65,7 +65,7 @@ body{font-family:'Inter','Noto Sans JP',sans-serif;background:var(--bg);color:va
 .job-card:hover{border-color:#3a3a55;box-shadow:0 4px 24px rgba(0,0,0,0.2)}
 .job-header{padding:18px 22px;cursor:pointer}
 .job-row1{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-.job-name{font-weight:700;font-size:15px;letter-spacing:-0.01em}
+.job-name{font-weight:700;font-size:15px;letter-spacing:-0.01em}.job-name:hover{text-decoration:underline}
 .job-source-tag{font-size:11px;color:var(--text-tertiary);margin-left:8px;font-weight:500}
 .job-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.03em;text-transform:uppercase}
 .job-badge.running{background:var(--warning-bg);color:var(--warning);border:1px solid var(--warning-border)}
@@ -322,7 +322,24 @@ async function pollJob(jid) {
         const res = await fetch('/jobs/'+jid);
         const data = await res.json();
         if (data.status==='running') {
-            updateHistory(jid, {status:'running', count:data.review_count||0, message:data.message||''});
+            // Update localStorage silently, NO render
+            const h=getHistory(); const i=h.find(x=>x.jobId===jid);
+            if(i){i.status='running';i.count=data.review_count||0;i.message=data.message||'';}
+            localStorage.setItem('scraper_history',JSON.stringify(h.slice(0,50)));
+            // DOM-only updates
+            const card = document.querySelector('[data-job-id="'+jid+'"]');
+            if (card) {
+                const statsEl = card.querySelector('.job-row2');
+                const progEl = card.querySelector('.job-progress');
+                const elapsed = formatDuration(Date.now()-new Date(i?.time||Date.now()).getTime());
+                if (statsEl) {
+                    let s='';
+                    if (data.review_count>0) s+='<span class="job-stat">📝 '+data.review_count+'件</span>';
+                    s+='<span class="job-stat">⏱ '+elapsed+'経過</span>';
+                    statsEl.innerHTML=s;
+                }
+                if (progEl) progEl.innerHTML='<span class="spin"></span>'+esc(data.message||'');
+            }
         } else if (data.status==='done') {
             clearInterval(pollTimers[jid]); delete pollTimers[jid];
             const el = getElapsed(jid);
@@ -404,7 +421,7 @@ function render() {
         if (st==='done') actions+=` <button class="btn-ghost" onclick="event.stopPropagation();toggleResults('${item.jobId}')">📄 結果</button> <button class="btn-ghost btn-dl" onclick="event.stopPropagation();downloadCsv('${item.jobId}')">⬇ CSV</button> <button class="btn-ghost btn-dl" onclick="event.stopPropagation();downloadJson('${item.jobId}')">⬇ JSON</button>`;
         actions+=` <button class="btn-ghost" onclick="event.stopPropagation();toggleLogs('${item.jobId}')">🔍 ログ</button>`;
         actions+=` <button class="btn-ghost" onclick="event.stopPropagation();removeHistory('${item.jobId}')" style="color:var(--text-tertiary)">✕</button>`;
-        return `<div class="job-card" data-job-id="${item.jobId}"><div class="job-header" onclick="toggleResults('${item.jobId}')"><div class="job-row1"><div><span class="job-name">${si} ${esc(item.name||extractName(item.url))}</span><span class="job-source-tag">${sl}</span></div><span class="job-badge ${st}"><span class="dot"></span>${statusLabel(st)}</span></div><div class="job-row2">${stats}</div>${progress}${error}<div class="job-url" title="${esc(item.url)}">${esc(item.url)}</div><div class="job-meta">${actions}</div></div><div class="job-results" id="results-${item.jobId}"><div class="results-bar"><span class="chip">${item.count||0}件</span><div style="display:flex;gap:6px"><button class="btn-ghost btn-dl" onclick="downloadCsv('${item.jobId}')">⬇ CSV</button><button class="btn-ghost btn-dl" onclick="downloadJson('${item.jobId}')">⬇ JSON</button></div></div><div class="table-wrap"><table><thead><tr><th>投稿者</th><th>評価</th><th>日付</th><th>コメント</th></tr></thead><tbody></tbody></table></div></div><div class="job-logs" id="logs-${item.jobId}"></div></div>`;
+        return `<div class="job-card" data-job-id="${item.jobId}"><div class="job-header" onclick="toggleResults('${item.jobId}')"><div class="job-row1"><div><a class="job-name" href="${esc(item.url)}" target="_blank" onclick="event.stopPropagation()" style="text-decoration:none;color:inherit">${si} ${esc(item.name||extractName(item.url))}</a><span class="job-source-tag">${sl}</span></div><span class="job-badge ${st}"><span class="dot"></span>${statusLabel(st)}</span></div><div class="job-row2">${stats}</div>${progress}${error}<div class="job-url" title="${esc(item.url)}">${esc(item.url)}</div><div class="job-meta">${actions}</div></div><div class="job-results" id="results-${item.jobId}"><div class="results-bar"><span class="chip">${item.count||0}件</span><div style="display:flex;gap:6px"><button class="btn-ghost btn-dl" onclick="downloadCsv('${item.jobId}')">⬇ CSV</button><button class="btn-ghost btn-dl" onclick="downloadJson('${item.jobId}')">⬇ JSON</button></div></div><div class="table-wrap"><table><thead><tr><th>投稿者</th><th>評価</th><th>日付</th><th>コメント</th></tr></thead><tbody></tbody></table></div></div><div class="job-logs" id="logs-${item.jobId}"></div></div>`;
     }).join('');
 }
 
@@ -457,23 +474,21 @@ async function syncFromServer() {
 }
 
 syncFromServer();
+// Elapsed time ticker (just updates elapsed display, no render)
 setInterval(()=>{
-    // Update running jobs in-place without full re-render
     const h = getHistory();
     for (const item of h) {
         if (item.status !== 'running') continue;
         const card = document.querySelector('[data-job-id="'+item.jobId+'"]');
-        if (!card) { render(); return; }
-        const elapsed = formatDuration(Date.now()-new Date(item.time).getTime());
+        if (!card) continue;
         const statsEl = card.querySelector('.job-row2');
         if (statsEl) {
-            let stats = '';
-            if (item.count > 0) stats += '<span class="job-stat">📝 '+item.count+'件</span>';
-            stats += '<span class="job-stat">⏱ '+elapsed+'経過</span>';
-            statsEl.innerHTML = stats;
+            const elapsed = formatDuration(Date.now()-new Date(item.time).getTime());
+            let s='';
+            if (item.count>0) s+='<span class="job-stat">📝 '+item.count+'件</span>';
+            s+='<span class="job-stat">⏱ '+elapsed+'経過</span>';
+            statsEl.innerHTML=s;
         }
-        const progEl = card.querySelector('.job-progress');
-        if (progEl && item.message) progEl.innerHTML = '<span class="spin"></span>'+esc(item.message);
     }
 }, 5000);
 </script>
