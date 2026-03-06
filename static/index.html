@@ -26,8 +26,6 @@
         .status.loading { display: block; background: #fff3cd; color: #856404; }
         .status.error { display: block; background: #f8d7da; color: #721c24; }
         .status.success { display: block; background: #d4edda; color: #155724; }
-        .progress-bar { height: 4px; background: #e0e0e0; border-radius: 2px; margin-top: 8px; overflow: hidden; }
-        .progress-fill { height: 100%; background: #1a73e8; transition: width 0.3s; border-radius: 2px; }
         .results { background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; display: none; margin-bottom: 24px; }
         .results-header { padding: 16px 24px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
         .results-header h2 { font-size: 16px; }
@@ -35,27 +33,40 @@
         .badge { background: #e8f0fe; color: #1a73e8; padding: 4px 12px; border-radius: 16px; font-size: 13px; font-weight: 600; }
         .btn-sm { padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid #1a73e8; background: #fff; color: #1a73e8; }
         .btn-sm:hover { background: #e8f0fe; }
+        .btn-sm.danger { border-color: #dc3545; color: #dc3545; }
+        .btn-sm.danger:hover { background: #f8d7da; }
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th { background: #f8f9fa; padding: 10px 12px; text-align: left; font-weight: 600; border-bottom: 2px solid #dee2e6; position: sticky; top: 0; }
         td { padding: 10px 12px; border-bottom: 1px solid #eee; vertical-align: top; }
         td.comment { max-width: 350px; white-space: pre-wrap; word-break: break-word; }
         tr:hover { background: #f8f9fa; }
         .table-wrap { max-height: 500px; overflow-y: auto; }
-        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #856404; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
+        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        h3 { font-size: 16px; margin-bottom: 12px; }
+        h3 { font-size: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .clear-all { font-size: 12px; color: #999; cursor: pointer; font-weight: 400; }
+        .clear-all:hover { color: #dc3545; }
         .history-list { list-style: none; }
-        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .history-item { padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
         .history-item:last-child { border-bottom: none; }
-        .history-info { flex: 1; min-width: 0; }
-        .history-url { font-size: 13px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 400px; }
-        .history-meta { font-size: 12px; color: #999; margin-top: 2px; }
+        .history-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
+        .history-name { font-weight: 600; font-size: 14px; }
         .history-actions { display: flex; gap: 6px; flex-shrink: 0; }
-        .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
-        .status-dot.done { background: #34a853; }
-        .status-dot.running { background: #fbbc04; }
-        .status-dot.failed { background: #ea4335; }
+        .history-detail { font-size: 13px; color: #555; margin-bottom: 2px; }
+        .history-url { font-size: 12px; color: #999; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+        .history-meta { font-size: 12px; color: #aaa; margin-top: 2px; }
+        .status-label { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
+        .status-label.running { background: #fff3cd; color: #856404; }
+        .status-label.done { background: #d4edda; color: #155724; }
+        .status-label.failed { background: #f8d7da; color: #721c24; }
+        .status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; }
+        .status-dot.running { background: #ffc107; }
+        .status-dot.done { background: #28a745; }
+        .status-dot.failed { background: #dc3545; }
+        .history-progress { margin-top: 6px; font-size: 13px; color: #856404; }
+        .history-error { margin-top: 4px; font-size: 12px; color: #dc3545; }
         .empty { color: #999; font-size: 14px; text-align: center; padding: 20px; }
+        .source-tag { font-size: 11px; color: #666; margin-left: 6px; font-weight: 400; }
     </style>
 </head>
 <body>
@@ -92,7 +103,7 @@
             </div>
         </div>
         <div class="history-card" id="historyCard">
-            <h3>📋 履歴</h3>
+            <h3>📋 履歴 <span class="clear-all" onclick="clearHistory()">すべて削除</span></h3>
             <ul class="history-list" id="historyList"></ul>
         </div>
     </div>
@@ -102,23 +113,43 @@
     let pollTimer = null;
     let currentReviews = [];
 
-    // ---- Source select ----
     function selectSource(el) {
         document.querySelectorAll('.source-btn').forEach(b => b.classList.remove('active'));
         el.classList.add('active');
         currentSource = el.dataset.source;
     }
 
-    // ---- Status ----
-    function setStatus(type, msg, progress) {
+    function setStatus(type, msg) {
         const s = document.getElementById('status');
         s.className = 'status ' + type;
-        let html = msg;
-        if (type === 'loading' && typeof progress === 'number') {
-            // Indeterminate but show count
-            html += '<div class="progress-bar"><div class="progress-fill" style="width:100%;animation:pulse 1.5s ease-in-out infinite"></div></div>';
-        }
-        s.innerHTML = html;
+        s.innerHTML = msg;
+    }
+
+    // Extract store name from URL
+    function extractName(url) {
+        if (!url) return '不明';
+        try {
+            // Google Maps: /maps/place/STORE_NAME/
+            const gmapMatch = url.match(/\/maps\/place\/([^/@]+)/);
+            if (gmapMatch) return decodeURIComponent(gmapMatch[1].replace(/\+/g, ' '));
+            // TripAdvisor: /Restaurant_Review-...-Reviews-STORE_NAME-...
+            const taMatch = url.match(/Reviews-([^-]+(?:-[^-]+)*?)-[A-Za-z]/);
+            if (taMatch) return decodeURIComponent(taMatch[1].replace(/_/g, ' '));
+        } catch {}
+        return url.substring(0, 40) + '...';
+    }
+
+    function formatDuration(ms) {
+        if (!ms || ms < 0) return '';
+        const sec = Math.floor(ms / 1000);
+        if (sec < 60) return sec + '秒';
+        const min = Math.floor(sec / 60);
+        const s = sec % 60;
+        return min + '分' + (s > 0 ? s + '秒' : '');
+    }
+
+    function statusText(s) {
+        return { running: '実行中', done: '完了', failed: '失敗' }[s] || s;
     }
 
     // ---- Start scrape ----
@@ -156,28 +187,39 @@
         try {
             const res = await fetch('/jobs/' + jobId);
             const data = await res.json();
+            const now = Date.now();
             if (data.status === 'running') {
-                setStatus('loading', `<span class="spinner"></span>${data.message}（${data.review_count}件）`);
-                updateHistory(jobId, { status: 'running', count: data.review_count });
+                const elapsed = getElapsed(jobId);
+                setStatus('loading', `<span class="spinner"></span>${data.message}（${data.review_count}件）${elapsed ? ' — ' + formatDuration(elapsed) + '経過' : ''}`);
+                updateHistory(jobId, { status: 'running', count: data.review_count, message: data.message });
             } else if (data.status === 'done') {
                 clearInterval(pollTimer); pollTimer = null;
                 currentReviews = data.reviews || [];
                 showResults(currentReviews);
-                setStatus('success', `✅ ${currentReviews.length}件の口コミを取得しました`);
-                updateHistory(jobId, { status: 'done', count: currentReviews.length });
+                const elapsed = getElapsed(jobId);
+                setStatus('success', `✅ ${currentReviews.length}件の口コミを取得しました${elapsed ? '（' + formatDuration(elapsed) + '）' : ''}`);
+                updateHistory(jobId, { status: 'done', count: currentReviews.length, duration: elapsed, finishedAt: new Date().toISOString() });
                 document.getElementById('scrapeBtn').disabled = false;
                 document.getElementById('scrapeBtn').textContent = '口コミを取得';
             } else if (data.status === 'failed') {
                 clearInterval(pollTimer); pollTimer = null;
-                setStatus('error', data.error || data.message || 'スクレイピング失敗');
-                updateHistory(jobId, { status: 'failed', count: 0 });
+                const errMsg = data.error || data.message || 'スクレイピング失敗';
+                setStatus('error', errMsg);
+                updateHistory(jobId, { status: 'failed', count: 0, error: errMsg, finishedAt: new Date().toISOString() });
                 document.getElementById('scrapeBtn').disabled = false;
                 document.getElementById('scrapeBtn').textContent = '口コミを取得';
             }
-        } catch (e) { /* ignore transient errors */ }
+        } catch (e) { /* transient */ }
     }
 
-    // ---- Results display ----
+    function getElapsed(jobId) {
+        const h = getHistory();
+        const item = h.find(x => x.jobId === jobId);
+        if (!item) return 0;
+        return Date.now() - new Date(item.time).getTime();
+    }
+
+    // ---- Results ----
     function showResults(reviews) {
         document.getElementById('count').textContent = reviews.length + '件';
         document.getElementById('tbody').innerHTML = reviews.map(r =>
@@ -204,7 +246,7 @@
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
     }
 
-    // ---- History (localStorage) ----
+    // ---- History ----
     function getHistory() {
         try { return JSON.parse(localStorage.getItem('scraper_history') || '[]'); } catch { return []; }
     }
@@ -214,7 +256,14 @@
     }
     function saveToHistory(jobId, url, source) {
         const h = getHistory();
-        h.unshift({ jobId, url, source, status: 'running', count: 0, time: new Date().toISOString() });
+        h.unshift({
+            jobId, url, source,
+            name: extractName(url),
+            status: 'running', count: 0,
+            message: '開始中...',
+            time: new Date().toISOString(),
+            duration: null, error: null, finishedAt: null
+        });
         setHistoryData(h);
     }
     function updateHistory(jobId, update) {
@@ -223,6 +272,13 @@
         if (item) Object.assign(item, update);
         setHistoryData(h);
     }
+    function removeHistory(jobId) {
+        setHistoryData(getHistory().filter(x => x.jobId !== jobId));
+    }
+    function clearHistory() {
+        if (confirm('履歴をすべて削除しますか？')) setHistoryData([]);
+    }
+
     function renderHistory() {
         const h = getHistory();
         const list = document.getElementById('historyList');
@@ -230,30 +286,55 @@
         list.innerHTML = h.map(item => {
             const date = new Date(item.time);
             const dateStr = date.toLocaleDateString('ja-JP') + ' ' + date.toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'});
-            const sourceLabel = item.source === 'gmap' ? '📍 Google Maps' : '🦉 TripAdvisor';
-            const statusClass = item.status || 'done';
-            const countText = item.count ? `${item.count}件` : '';
+            const sourceIcon = item.source === 'gmap' ? '📍' : '🦉';
+            const sourceLabel = item.source === 'gmap' ? 'Google Maps' : 'TripAdvisor';
+            const st = item.status || 'done';
+            const durationStr = item.duration ? formatDuration(item.duration) : '';
+
+            let detailParts = [];
+            if (item.count > 0) detailParts.push(item.count + '件');
+            if (durationStr) detailParts.push(durationStr);
+
+            let progressHtml = '';
+            if (st === 'running' && item.message) {
+                progressHtml = `<div class="history-progress"><span class="spinner" style="width:12px;height:12px;border-width:1.5px;"></span>${esc(item.message)}</div>`;
+            }
+            let errorHtml = '';
+            if (st === 'failed' && item.error) {
+                errorHtml = `<div class="history-error">⚠️ ${esc(item.error)}</div>`;
+            }
+
             return `<li class="history-item">
-                <div class="history-info">
-                    <div><span class="status-dot ${statusClass}"></span>${sourceLabel} ${countText}</div>
-                    <div class="history-url" title="${esc(item.url)}">${esc(item.url)}</div>
-                    <div class="history-meta">${dateStr}</div>
+                <div class="history-top">
+                    <div>
+                        <span class="history-name">${sourceIcon} ${esc(item.name || extractName(item.url))}</span>
+                        <span class="source-tag">${sourceLabel}</span>
+                    </div>
+                    <div class="history-actions">
+                        <span class="status-label ${st}"><span class="status-dot ${st}"></span>${statusText(st)}</span>
+                    </div>
                 </div>
-                <div class="history-actions">
-                    <button class="btn-sm" onclick="loadJob('${item.jobId}')" title="結果を表示">📄</button>
-                    <button class="btn-sm" onclick="removeHistory('${item.jobId}')" title="削除">🗑️</button>
+                <div class="history-detail">${detailParts.length ? detailParts.join(' ・ ') : ''}</div>
+                ${progressHtml}
+                ${errorHtml}
+                <div class="history-url" title="${esc(item.url)}">${esc(item.url)}</div>
+                <div class="history-meta">
+                    ${dateStr}
+                    ${st === 'done' ? `<button class="btn-sm" style="margin-left:8px;padding:2px 8px;font-size:11px;" onclick="loadJob('${item.jobId}')">📄 結果を見る</button>` : ''}
+                    <button class="btn-sm danger" style="margin-left:4px;padding:2px 8px;font-size:11px;" onclick="removeHistory('${item.jobId}')">🗑️</button>
                 </div>
             </li>`;
         }).join('');
     }
-    function removeHistory(jobId) {
-        setHistoryData(getHistory().filter(x => x.jobId !== jobId));
-    }
+
     async function loadJob(jobId) {
         try {
             const res = await fetch('/jobs/' + jobId);
             const data = await res.json();
-            if (data.error) { setStatus('error', 'このジョブはサーバー上に残っていません（インスタンス再起動済み）'); return; }
+            if (data.error && data.error === 'Job not found') {
+                setStatus('error', 'このジョブはサーバー上に残っていません（インスタンス再起動済み）');
+                return;
+            }
             if (data.status === 'done' && data.reviews) {
                 currentReviews = data.reviews;
                 showResults(currentReviews);
@@ -268,7 +349,7 @@
         } catch (e) { setStatus('error', 'サーバーに接続できません'); }
     }
 
-    // ---- Auto-detect source ----
+    // ---- Auto-detect ----
     document.getElementById('url').addEventListener('input', function() {
         if (this.value.includes('tripadvisor')) selectSource(document.querySelector('[data-source="tripadvisor"]'));
         else if (this.value.includes('google.com/maps') || this.value.includes('goo.gl')) selectSource(document.querySelector('[data-source="gmap"]'));
@@ -276,7 +357,6 @@
 
     function esc(s) { return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : ''; }
 
-    // Init
     renderHistory();
     </script>
 </body>
