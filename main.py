@@ -37,7 +37,6 @@ def cleanup_stale_jobs():
 
 class Source(str, Enum):
     google = "google"
-    gmap = "gmap"  # backward compat
     tripadvisor = "tripadvisor"
 
 
@@ -137,7 +136,7 @@ async def _run_scrape(job_id: str, url: str, source: Source):
             """Save reviews incrementally as they are collected."""
             db.save_review_batch(job_id, reviews_batch)
 
-        if source in (Source.google, Source.gmap):
+        if source == Source.google:
             coro = asyncio.to_thread(scrape_google_reviews, url, progress_callback, review_save_callback)
         else:
             coro = asyncio.to_thread(scrape_tripadvisor_reviews, url, progress_callback, review_save_callback)
