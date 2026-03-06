@@ -139,7 +139,7 @@ tr:hover td{background:var(--surface2)}
 <body>
 <div class="app">
   <div class="header">
-    <h1><a href="/" style="color:inherit;text-decoration:none">Review Scraper</a></h1><button onclick="flushInstances()" style="font-size:11px;padding:4px 10px;border-radius:5px;border:1px solid var(--border-light);background:var(--surface2);color:var(--text-secondary);cursor:pointer;margin-left:8px" title="全ジョブ停止＋旧インスタンス解放">🔄 インスタンスリセット</button>
+    <h1><a href="/" style="color:inherit;text-decoration:none">Review Scraper</a></h1>
     <p>Google Maps・TripAdvisor の口コミを取得</p>
   </div>
   <div class="page-tabs">
@@ -159,7 +159,7 @@ tr:hover td{background:var(--surface2)}
     </div>
     <div class="sec-header" id="secHeader" style="display:none">
       <h3>履歴</h3>
-      <span class="link-danger" onclick="clearAll()">すべて削除</span>
+      <span class="link-danger" onclick="clearAll()">すべて削除</span> <span class="link-danger" onclick="flushInstances()" style="margin-left:8px" title="全ジョブ停止＋旧インスタンス解放">リセット</span>
     </div>
     <div class="job-list" id="jobList"><div class="empty">URLを入力して取得開始</div></div>
   </div>
@@ -418,7 +418,8 @@ function render(){
   const list=document.getElementById('jobList');const hdr=document.getElementById('secHeader');
   hdr.style.display=jobs.length?'flex':'none';
   if(!jobs.length){list.innerHTML='<div class="empty">URLを入力して取得開始</div>';return}
-  list.innerHTML=jobs.map(j=>{
+  const totalPages=Math.ceil(jobs.length/PAGE_SIZE);if(currentPage>totalPages)currentPage=totalPages||1;const pageJobs=jobs.slice((currentPage-1)*PAGE_SIZE,currentPage*PAGE_SIZE);
+  list.innerHTML=pageJobs.map(j=>{
     const st=j.status;
     const stLbl={running:'実行中',done:'完了',failed:'失敗',cancelled:'停止'}[st]||st;
     let statsHtml='';
@@ -459,8 +460,15 @@ function render(){
       </div>
     </div>`
   }).join('');
+  if(totalPages>1){
+    let nav='<div class="page-nav">';
+    if(currentPage>1)nav+='<span class="page-btn" onclick="goPage('+(currentPage-1)+')">← 前</span>';
+    nav+='<span class="page-info">'+currentPage+' / '+totalPages+'</span>';
+    if(currentPage<totalPages)nav+='<span class="page-btn" onclick="goPage('+(currentPage+1)+')">次 →</span>';
+    nav+='</div>';list.insertAdjacentHTML('beforeend',nav)}
   for(const[id,mode] of Object.entries(openPanels)){if(mode==='results')loadResults(id);if(mode==='logs')loadLogs(id)}
 }
+function goPage(p){currentPage=p;render();window.scrollTo(0,document.getElementById('jobList').offsetTop-20)}
 
 function showPanel(id,mode){if(openPanels[id]===mode){delete openPanels[id];render();return}openPanels[id]=mode;render()}
 function switchDetail(id,mode){openPanels[id]=mode;render()}
