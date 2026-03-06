@@ -263,7 +263,7 @@ def _parse_review_card(card) -> dict | None:
         except Exception:
             continue
 
-    if not comment:
+    if not comment and not rating:
         return None
 
     return {

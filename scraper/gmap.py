@@ -351,7 +351,7 @@ def _extract_reviews_from_dom(page, saved_ids: set) -> list[dict]:
             date = (date_el.text_content() or "").strip() if date_el else ""
             comment = (text_el.text_content() or "").strip() if text_el else ""
 
-            if comment:
+            if comment or rating:
                 new_reviews.append(
                     {
                         "review_id": rid,
