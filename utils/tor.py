@@ -29,9 +29,13 @@ def renew_circuit() -> bool:
 
 
 def get_proxy_for_retry(retry: int) -> str | None:
-    """Return proxy URL for this retry attempt. None = direct, str = proxy URL."""
-    if retry == 0:
-        return None  # First attempt: direct
-    if renew_circuit():
-        return TOR_PROXY_URL
+    """Return proxy URL for this retry attempt. Tor first (GCP IP is known)."""
+    if retry <= 2:
+        # 最初の3回はTor（GCP IPより先にTor）
+        if retry > 0:
+            renew_circuit()  # 2回目以降は回線更新
+        if is_tor_available():
+            return TOR_PROXY_URL
+        return None
+    # 残りは直接
     return None
