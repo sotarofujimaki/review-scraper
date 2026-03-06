@@ -34,6 +34,8 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
     if "tripadvisor" not in url.lower():
         raise ValueError("TripAdvisorのURLを入力してください")
 
+    # .com → .jp に変換（日本語版=全言語レビュー表示、英語版=Englishフィルタがかかる）
+    url = re.sub(r'tripadvisor\.com', 'tripadvisor.jp', url, flags=re.IGNORECASE)
     base_url = _prepare_base_url(url)
     start_time = time.time()
 
@@ -84,9 +86,14 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                         pcb(0, "レストランページでCAPTCHA検出")
                     return
 
+                # .jpドメイン使用で全言語レビュー表示（フィルタ操作不要）
+                if pcb:
+                    pcb(0, f"言語: 日本語版 (tripadvisor.jp) → 全言語レビュー表示")
+
+                # フィルタ変更後にカード検出
                 cards = query_all_first(page, TRIPADVISOR["review_card"])
                 if not cards:
-                    res["error"] = "No review cards found"
+                    res["error"] = "No review cards found after filter"
                     if pcb:
                         pcb(0, "レビューカード未検出")
                     return
@@ -95,8 +102,6 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                 if pcb:
                     pcb(0, f"レビュー検出OK ({len(cards)}件)、収集開始...")
                     pcb(0, f"ページURL: {actual_url[:100]}")
-                    has_filter = "filterLang" in actual_url
-                    pcb(0, f"言語フィルタ: {'ALL（有効）' if has_filter else 'なし（デフォルト=英語の可能性）'}")
 
                 all_reviews = []
                 page_num = 0
