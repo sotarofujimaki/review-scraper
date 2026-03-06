@@ -294,13 +294,17 @@ def _start_session(url: str, progress_callback=None):
 
         # Poll for review elements
         found = False
-        for i in range(15):
+        for i in range(5):
             if page.query_selector_all(".wiI7pd"):
                 found = True
                 break
+            # Also try data-review-id as fallback
+            if page.query_selector_all("[data-review-id]"):
+                found = True
+                break
             if progress_callback:
-                progress_callback(0, f"レビュー要素を待機中... ({i + 1}/15)")
-            time.sleep(2)
+                progress_callback(0, f"レビュー要素を待機中... ({i + 1}/5)")
+            time.sleep(3)
 
         if found:
             if progress_callback:
@@ -309,7 +313,7 @@ def _start_session(url: str, progress_callback=None):
 
         last_error = "レビュー要素が見つかりませんでした"
         if progress_callback:
-            progress_callback(0, f"レビュー未検出、リトライ中... ({retry + 1}/5)")
+            progress_callback(0, f"レビュー未検出（IP制限の可能性）、リトライ中... ({retry + 1}/5)")
         try:
             session.close()
         except Exception:
