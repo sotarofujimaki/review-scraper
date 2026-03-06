@@ -217,7 +217,6 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                 wait=5,
                 hide_canvas=True,
                 block_webrtc=True,
-                disable_resources=True,
                 timezone_id="Asia/Tokyo",
                 locale="ja-JP",
                 blocked_domains=BLOCKED_DOMAINS_TA,
