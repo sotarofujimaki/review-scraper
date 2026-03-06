@@ -6,6 +6,7 @@ while page_action gives us direct Playwright page control for navigation.
 """
 from scrapling.fetchers import StealthyFetcher
 from utils.date_parser import parse_japanese_date
+from css_selectors import TRIPADVISOR, query_first, query_all_first
 import re
 import time
 
@@ -61,7 +62,7 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                 # Wait for cards to render
                 for _w in range(10):
                     time.sleep(1)
-                    if page.query_selector('[data-automation="reviewCard"]'):
+                    if query_first(page, TRIPADVISOR["review_card"]):
                         break
                 time.sleep(2)
 
@@ -73,12 +74,8 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                     return
 
                 # Check for review cards
-                cards = page.query_selector_all('[data-automation="reviewCard"]')
-                if not cards:
-                    for alt in ['[data-test-target="HR_CC_CARD"]', '.review-container']:
-                        cards = page.query_selector_all(alt)
-                        if cards:
-                            break
+                cards = query_all_first(page, TRIPADVISOR["review_card"])
+
 
                 if not cards:
                     res["error"] = "No review cards found"
@@ -99,7 +96,7 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                             pcb(len(all_reviews), "30分タイムアウト、収集終了")
                         break
 
-                    cards = page.query_selector_all('[data-automation="reviewCard"]')
+                    cards = query_all_first(page, TRIPADVISOR["review_card"])
                     if not cards:
                         for alt in ['[data-test-target="HR_CC_CARD"]', '.review-container']:
                             cards = page.query_selector_all(alt)
@@ -149,7 +146,7 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                         card_found = False
                         for _w in range(8):
                             time.sleep(1)
-                            if page.query_selector('[data-automation="reviewCard"]'):
+                            if query_first(page, TRIPADVISOR["review_card"]):
                                 card_found = True
                                 break
                         if not card_found and pcb:

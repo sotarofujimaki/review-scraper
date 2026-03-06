@@ -1,6 +1,7 @@
 """Google Maps review scraper using Scrapling StealthySession."""
 from scrapling.fetchers import StealthySession
 from utils.date_parser import parse_japanese_date
+from css_selectors import GOOGLE, query_first, query_all_first
 from scrapling.engines.toolbelt.fingerprints import generate_convincing_referer
 import time
 import subprocess
@@ -200,7 +201,7 @@ def _click_reviews_tab(page):
 def _sort_by_newest(page):
     """Sort reviews by newest first."""
     try:
-        sort_btn = page.query_selector('button[aria-label="クチコミの並べ替え"]')
+        sort_btn = query_first(page, GOOGLE["sort_button"])
         if not sort_btn:
             return
         sort_btn.click()
@@ -342,7 +343,7 @@ def _start_session(url: str, progress_callback=None):
         # Poll for review elements
         found = False
         for i in range(3):
-            if page.query_selector_all(".wiI7pd") or page.query_selector_all("[data-review-id]"):
+            if query_all_first(page, GOOGLE["review_text"]) or query_all_first(page, GOOGLE["review_block"]):
                 found = True
                 break
             if progress_callback:
@@ -367,7 +368,7 @@ def _start_session(url: str, progress_callback=None):
 
 def _extract_reviews_from_dom(page, saved_ids: set) -> list[dict]:
     """Extract unsaved reviews currently in the DOM."""
-    blocks = page.query_selector_all("[data-review-id]")
+    blocks = query_all_first(page, GOOGLE["review_block"])
     new_reviews = []
     for block in blocks:
         try:
@@ -376,7 +377,7 @@ def _extract_reviews_from_dom(page, saved_ids: set) -> list[dict]:
                 continue
 
             # Expand "More" button
-            more = block.query_selector("button.w8nwRe")
+            more = query_first(block, GOOGLE["read_more"])
             if more:
                 try:
                     more.click()
@@ -384,10 +385,10 @@ def _extract_reviews_from_dom(page, saved_ids: set) -> list[dict]:
                 except Exception:
                     pass
 
-            author_el = block.query_selector(".d4r55")
-            rating_el = block.query_selector(".kvMYJc")
-            date_el = block.query_selector(".rsqaWe")
-            text_el = block.query_selector(".wiI7pd")
+            author_el = query_first(block, GOOGLE["author"])
+            rating_el = query_first(block, GOOGLE["rating"])
+            date_el = query_first(block, GOOGLE["date"])
+            text_el = query_first(block, GOOGLE["review_text"])
 
             author = (author_el.text_content() or "").strip() if author_el else ""
             raw_rating = (
