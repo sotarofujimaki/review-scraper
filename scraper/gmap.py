@@ -100,6 +100,33 @@ def _warm_up_session(page, session):
         pass
 
 
+def _click_reviews_tab(page):
+    """Click the reviews tab to show all reviews."""
+    tabs = page.query_selector_all('button[role="tab"]')
+    for tab in tabs:
+        text = (tab.text_content() or "").strip()
+        if "クチコミ" in text or "口コミ" in text or "review" in text.lower():
+            tab.click()
+            time.sleep(5)
+            return True
+
+    # Fallback: click element with aria-label containing クチコミ
+    clicked = page.evaluate("""() => {
+        const els = document.querySelectorAll('button, a, [role="button"]');
+        for (const el of els) {
+            const label = el.getAttribute('aria-label') || '';
+            if (label.includes('クチコミ') || label.includes('口コミ')) {
+                el.click();
+                return true;
+            }
+        }
+        return false;
+    }""")
+    if clicked:
+        time.sleep(5)
+    return clicked
+
+
 def _start_session(url: str):
     """Start a StealthySession and navigate to the URL with retries."""
     import os
@@ -132,9 +159,15 @@ def _start_session(url: str):
             url, referer=referer, wait_until="domcontentloaded", timeout=60000
         )
 
-        # Poll for review elements (wait_for_selector is unreliable)
+        # Wait for page to load, then click reviews tab
+        time.sleep(8)
+
+        # Try clicking reviews tab first
+        _click_reviews_tab(page)
+
+        # Poll for review elements
         found = False
-        for _ in range(20):
+        for _ in range(15):
             if page.query_selector_all(".wiI7pd"):
                 found = True
                 break
