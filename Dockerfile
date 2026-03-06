@@ -17,7 +17,7 @@ RUN pip install --no-cache-dir -r requirements.txt \
     && python -m playwright install chromium \
     && python -m playwright install-deps chromium
 
-ARG CACHEBUST=1772830984
+COPY .build-timestamp /tmp/.build-timestamp
 COPY . .
 
 EXPOSE 8080
