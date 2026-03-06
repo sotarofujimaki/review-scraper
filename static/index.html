@@ -436,7 +436,7 @@ function render(){
     return `<div class="job-card" data-id="${j.id}">
       <div class="job-top">
         <div class="job-info">
-          <div class="job-title"><a href="${esc(j.url)}" target="_blank" onclick="event.stopPropagation()">${esc(j.name)}</a> <span class="src-tag ${j.source}">${srcLabel(j.source)}</span> <code style="font-size:10px;color:var(--text-tertiary);background:var(--surface2);padding:1px 5px;border-radius:3px;user-select:all">${j.id}</code></div>
+          <div class="job-title"><a href="${esc(j.url)}" target="_blank" onclick="event.stopPropagation()">${esc(j.name)}</a> <span class="src-tag ${j.source}">${srcLabel(j.source)}</span> <code style="font-size:10px;color:var(--text-tertiary);background:var(--surface2);padding:1px 5px;border-radius:3px;user-select:all">Job ID: ${j.id}</code></div>
           <div class="job-url"><a href="${esc(j.url)}" target="_blank" onclick="event.stopPropagation()">${esc(j.url)}</a></div>
           <div class="job-stats"><span class="j-stats">${statsHtml}</span></div>
           ${progHtml}${errHtml}
