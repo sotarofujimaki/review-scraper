@@ -305,9 +305,9 @@ def _start_session(url: str, progress_callback=None):
         if progress_callback:
             progress_callback(0, f"タブ検出: {tab_count}個")
 
-        if tab_count < 3:
+        if tab_count < 4:
             if progress_callback:
-                progress_callback(0, f"タブ不足({tab_count}個)、IP制限の可能性。プロファイル再作成してリトライ...")
+                progress_callback(0, f"タブ{tab_count}個（クチコミタブなし）、Cookieリセットしてリトライ...")
             try:
                 session.close()
             except Exception:
