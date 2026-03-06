@@ -94,6 +94,18 @@ td{padding:8px 10px;border-bottom:1px solid var(--border-light);vertical-align:t
 td.comment{white-space:pre-wrap;word-break:break-word;line-height:1.5;color:var(--text-secondary)}
 tr:hover td{background:var(--surface2)}
 .stars{color:#f59f00;letter-spacing:1px;font-size:13px;white-space:nowrap}
+@media(max-width:600px){
+  .table-wrap table thead{display:none}
+  .table-wrap table,.table-wrap tbody,.table-wrap tr,.table-wrap td{display:block;width:100%}
+  .table-wrap tr{padding:12px 0;border-bottom:1px solid var(--border)}
+  .table-wrap td{padding:2px 0;border:none;overflow:visible}
+  .table-wrap td:before{content:attr(data-label);display:inline-block;width:60px;font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase}
+  .table-wrap td.comment{padding-top:6px}
+  .table-wrap td.comment:before{display:block;margin-bottom:2px}
+  .container{padding:12px}
+  .job-card{padding:12px}
+  h1{font-size:20px}
+}
 .logs-pane{max-height:280px;overflow-y:auto;padding:12px 16px;background:var(--surface)}
 .log-line{display:grid;grid-template-columns:60px 1fr;gap:8px;padding:3px 0;font-size:11px;border-bottom:1px solid var(--border);line-height:1.5}
 .log-line .log-t{color:var(--text-secondary);white-space:nowrap;font-family:monospace}
@@ -370,7 +382,7 @@ function render(){
 function showPanel(id,mode){if(openPanels[id]===mode){delete openPanels[id];render();return}openPanels[id]=mode;render()}
 function switchDetail(id,mode){openPanels[id]=mode;render()}
 
-async function loadResults(id){const tbody=document.getElementById('tbody-'+id);if(!tbody)return;if(!cache[id]){try{const r=await fetch('/jobs/'+id+'/reviews');const d=await r.json();if(Array.isArray(d))cache[id]=d}catch{}}const revs=cache[id]||[];tbody.innerHTML=revs.map(r=>`<tr><td><strong>${esc(r.author||'—')}</strong></td><td>${stars(r.rating)}</td><td style="white-space:nowrap;color:var(--text-tertiary);font-size:11px">${esc(r.date)}</td><td class="comment">${esc(r.comment||'（コメントなし）')}</td></tr>`).join('')}
+async function loadResults(id){const tbody=document.getElementById('tbody-'+id);if(!tbody)return;if(!cache[id]){try{const r=await fetch('/jobs/'+id+'/reviews');const d=await r.json();if(Array.isArray(d))cache[id]=d}catch{}}const revs=cache[id]||[];tbody.innerHTML=revs.map(r=>`<tr><td data-label="投稿者"><strong>${esc(r.author||'—')}</strong></td><td data-label="評価">${stars(r.rating)}</td><td data-label="日付" style="white-space:nowrap;color:var(--text-tertiary);font-size:11px">${esc(r.date)}</td><td data-label="コメント" class="comment">${esc(r.comment||'（コメントなし）')}</td></tr>`).join('')}
 
 async function loadLogs(id){const el=document.getElementById('logs-'+id);if(!el)return;try{const r=await fetch('/jobs/'+id+'/logs');const logs=await r.json();if(!logs.length){el.innerHTML='<div style="color:var(--text-tertiary);font-size:11px;padding:4px">ログなし</div>';return}el.innerHTML=logs.map(l=>{const t=new Date(l.time);return`<div class="log-line"><span class="log-t">${t.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span><span class="log-m">${esc(l.message)}</span></div>`}).join('');el.scrollTop=el.scrollHeight}catch{el.innerHTML='<div style="color:var(--danger);font-size:11px">取得失敗</div>'}}
 
