@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
 from pydantic import BaseModel
 
-from scraper.gmap import scrape_gmap_reviews
+from scraper.google import scrape_google_reviews
 from scraper.tripadvisor import scrape_tripadvisor_reviews
 import db
 
@@ -138,7 +138,7 @@ async def _run_scrape(job_id: str, url: str, source: Source):
             db.save_review_batch(job_id, reviews_batch)
 
         if source in (Source.google, Source.gmap):
-            coro = asyncio.to_thread(scrape_gmap_reviews, url, progress_callback, review_save_callback)
+            coro = asyncio.to_thread(scrape_google_reviews, url, progress_callback, review_save_callback)
         else:
             coro = asyncio.to_thread(scrape_tripadvisor_reviews, url, progress_callback, review_save_callback)
 

@@ -101,7 +101,7 @@ def _ensure_reviews_tab(url: str) -> str:
     return url
 
 
-def scrape_gmap_reviews(url: str, progress_callback=None, review_save_callback=None) -> list[dict]:
+def scrape_google_reviews(url: str, progress_callback=None, review_save_callback=None) -> list[dict]:
     """Scrape all reviews from a Google Maps URL.
 
     Uses StealthySession with direct Playwright page manipulation.
@@ -127,7 +127,7 @@ def scrape_gmap_reviews(url: str, progress_callback=None, review_save_callback=N
                 pass
 
 
-PROFILE_BASE = "/tmp/gmap-profiles"
+PROFILE_BASE = "/tmp/google-profiles"
 
 
 REQUIRED_COOKIES = {"AEC", "NID"}  # Minimum cookies needed for reviews tab

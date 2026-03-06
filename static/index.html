@@ -379,7 +379,7 @@ function srcLabel(s){return s==='google'||s==='gmap'?'Google Maps':'TripAdvisor'
 function stars(r){const n=parseInt(r)||0;return'<span class="stars">'+'★'.repeat(n)+'<span style="opacity:.3;color:#ccc">'+'☆'.repeat(5-n)+'</span></span>'}
 
 async function loadJobs(){
-  try{const r=await fetch('/jobs');const list=await r.json();jobs=list.map(j=>({id:j.job_id,url:j.url||'',source:j.source||'gmap',name:extractName(j.url||''),status:j.status,count:j.review_count||0,message:j.message||'',error:j.error||null,time:j.created_at||new Date().toISOString(),duration:j.duration||null})).sort((a,b)=>new Date(b.time)-new Date(a.time));render();for(const j of jobs){if(j.status==='running')startPoll(j.id)}}catch(e){render()}
+  try{const r=await fetch('/jobs');const list=await r.json();jobs=list.map(j=>({id:j.job_id,url:j.url||'',source:j.source||'google',name:extractName(j.url||''),status:j.status,count:j.review_count||0,message:j.message||'',error:j.error||null,time:j.created_at||new Date().toISOString(),duration:j.duration||null})).sort((a,b)=>new Date(b.time)-new Date(a.time));render();for(const j of jobs){if(j.status==='running')startPoll(j.id)}}catch(e){render()}
 }
 
 async function startScrape(){
