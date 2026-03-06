@@ -369,6 +369,8 @@ if s["status"] == "done":
 function switchTab(t){document.querySelectorAll('.page-tab').forEach(e=>e.classList.remove('active'));document.querySelectorAll('.tab-content').forEach(e=>e.classList.remove('active'));document.querySelector('.page-tab[onclick*="'+t+'"]').classList.add('active');document.getElementById('tab-'+t).classList.add('active')}
 function cpCode(b){navigator.clipboard.writeText(b.parentElement.textContent.replace('Copy','').trim());b.textContent='✓';setTimeout(()=>b.textContent='Copy',1200)}
 
+const PAGE_SIZE=20;
+let currentPage=1;
 let src='google', polls={}, jobs=[], cache={}, openPanels={};
 function pickSrc(el){document.querySelectorAll('.source-opt').forEach(b=>b.classList.remove('active'));el.classList.add('active');src=el.dataset.source}
 document.getElementById('url').addEventListener('input',function(){if(this.value.includes('tripadvisor'))pickSrc(document.querySelector('[data-source="tripadvisor"]'));else if(this.value.match(/google|goo\.gl|share\.google/))pickSrc(document.querySelector('[data-source="google"]'))});
