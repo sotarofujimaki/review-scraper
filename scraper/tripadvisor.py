@@ -247,12 +247,17 @@ def _parse_review_card(card) -> dict | None:
         for t in titles:
             txt = t.text_content() or ""
             if "バブル評価" in txt or "段階中" in txt or "of 5 bubbles" in txt:
-                rating = txt.strip()
+                import re
+                m = re.search(r'(\d)\s*$', txt.strip())
+                rating = m.group(1) if m else txt.strip()
                 break
         if not rating:
             bubble = card.query_selector("[class*='bubble']")
             if bubble:
-                rating = bubble.get_attribute("aria-label") or ""
+                raw = bubble.get_attribute("aria-label") or ""
+                import re
+                m = re.search(r'(\d)\s*$', raw)
+                rating = m.group(1) if m else raw
     except Exception:
         pass
 
