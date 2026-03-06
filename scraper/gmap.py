@@ -84,7 +84,7 @@ def scrape_gmap_reviews(url: str, progress_callback=None) -> list[dict]:
 
     session = None
     try:
-        page, session = _start_session(url)
+        page, session = _start_session(url, progress_callback)
         return _collect_all_reviews(page, progress_callback)
     finally:
         if session:
@@ -97,20 +97,43 @@ def scrape_gmap_reviews(url: str, progress_callback=None) -> list[dict]:
 PROFILE_DIR = "/tmp/gmap-browser-profile"
 
 
+REQUIRED_COOKIES = {"AEC", "NID"}  # Minimum cookies needed for reviews tab
+
+
+def _check_cookies(session) -> dict:
+    """Check which required Google cookies are present."""
+    cookies = session.context.cookies()
+    names = {c.get("name", "") for c in cookies if "google" in c.get("domain", "")}
+    return {
+        "present": names & REQUIRED_COOKIES,
+        "missing": REQUIRED_COOKIES - names,
+        "all_google": names,
+    }
+
+
 def _warm_up_session(page, session):
     """Visit Google properties to accumulate cookies for trust score."""
     try:
-        cookies = session.context.cookies()
-        google_cookies = [c for c in cookies if "google" in c.get("domain", "")]
-        if google_cookies:
-            return  # Already has Google cookies
+        check = _check_cookies(session)
+        if not check["missing"]:
+            return True  # Already has required cookies
 
         page.goto("https://www.google.co.jp/", wait_until="domcontentloaded", timeout=60000)
-        time.sleep(2)
+        time.sleep(3)
         page.goto("https://www.google.com/maps", wait_until="domcontentloaded", timeout=60000)
-        time.sleep(2)
+        time.sleep(3)
+
+        # Verify cookies were set
+        check = _check_cookies(session)
+        if check["missing"]:
+            # Try one more time with longer wait
+            page.goto("https://www.google.co.jp/search?q=maps", wait_until="domcontentloaded", timeout=60000)
+            time.sleep(3)
+            check = _check_cookies(session)
+
+        return not check["missing"]
     except Exception:
-        pass
+        return False
 
 
 def _click_reviews_tab(page):
@@ -163,18 +186,30 @@ def _sort_by_newest(page):
         pass
 
 
-def _start_session(url: str):
+def _start_session(url: str, progress_callback=None):
     """Start a StealthySession and navigate to the URL with retries."""
     import os
     os.makedirs(PROFILE_DIR, exist_ok=True)
 
+    last_error = ""
     for retry in range(5):
-        session = StealthySession(
-            headless=True,
-            locale="ja-JP",
-            user_data_dir=PROFILE_DIR,
-        )
-        session.start()
+        if progress_callback:
+            progress_callback(0, f"セッション開始中... (試行 {retry + 1}/5)")
+
+        try:
+            session = StealthySession(
+                headless=True,
+                locale="ja-JP",
+                user_data_dir=PROFILE_DIR,
+            )
+            session.start()
+        except Exception as e:
+            last_error = f"セッション起動失敗: {e}"
+            if progress_callback:
+                progress_callback(0, f"セッション起動失敗、リトライ中... ({retry + 1}/5)")
+            time.sleep(3)
+            continue
+
         page = (
             session.context.pages[0]
             if session.context.pages
@@ -187,43 +222,101 @@ def _start_session(url: str):
             lambda route: route.abort(),
         )
 
-        # Warm up: visit Google to get cookies (critical for reviews tab)
-        _warm_up_session(page, session)
+        # Cookie warm-up with validation
+        if progress_callback:
+            progress_callback(0, "Cookie取得中...")
+        cookies_ok = _warm_up_session(page, session)
+        if not cookies_ok:
+            check = _check_cookies(session)
+            if progress_callback:
+                progress_callback(0, f"Cookie不足 (missing: {check['missing']})、プロファイル再作成してリトライ...")
+            try:
+                session.close()
+            except Exception:
+                pass
+            # Delete profile and retry with fresh cookies
+            import shutil
+            shutil.rmtree(PROFILE_DIR, ignore_errors=True)
+            os.makedirs(PROFILE_DIR, exist_ok=True)
+            time.sleep(2)
+            continue
+
+        if progress_callback:
+            progress_callback(0, "Cookie OK、ページ読み込み中...")
 
         # Resolve share.google URLs in browser (JS redirect)
         url = _resolve_share_url_in_browser(page, url)
 
-        referer = generate_convincing_referer(url)
-        page.goto(
-            url, referer=referer, wait_until="networkidle", timeout=120000
-        )
+        try:
+            referer = generate_convincing_referer(url)
+            page.goto(
+                url, referer=referer, wait_until="networkidle", timeout=120000
+            )
+        except Exception as e:
+            last_error = f"ページ読み込み失敗: {e}"
+            if progress_callback:
+                progress_callback(0, f"ページタイムアウト、リトライ中... ({retry + 1}/5)")
+            try:
+                session.close()
+            except Exception:
+                pass
+            time.sleep(3)
+            continue
 
-        # Wait for page to load, then click reviews tab
-        time.sleep(8)
+        time.sleep(5)
 
-        # Try clicking reviews tab first
+        # Early detection: check if page has tabs (概要/クチコミ/写真/基本情報)
+        tab_count = len(page.query_selector_all('button[role="tab"]'))
+        if progress_callback:
+            progress_callback(0, f"タブ検出: {tab_count}個")
+
+        if tab_count < 3:
+            if progress_callback:
+                progress_callback(0, f"タブ不足({tab_count}個)、IP制限の可能性。プロファイル再作成してリトライ...")
+            try:
+                session.close()
+            except Exception:
+                pass
+            import shutil
+            shutil.rmtree(PROFILE_DIR, ignore_errors=True)
+            os.makedirs(PROFILE_DIR, exist_ok=True)
+            time.sleep(5)
+            continue
+
+        # Try clicking reviews tab
+        if progress_callback:
+            progress_callback(0, "クチコミタブをクリック中...")
         _click_reviews_tab(page)
 
         # Sort by newest
+        if progress_callback:
+            progress_callback(0, "新しい順にソート中...")
         _sort_by_newest(page)
 
         # Poll for review elements
         found = False
-        for _ in range(15):
+        for i in range(15):
             if page.query_selector_all(".wiI7pd"):
                 found = True
                 break
+            if progress_callback:
+                progress_callback(0, f"レビュー要素を待機中... ({i + 1}/15)")
             time.sleep(2)
 
         if found:
+            if progress_callback:
+                progress_callback(0, "レビュー検出OK、収集開始...")
             return page, session
 
+        last_error = "レビュー要素が見つかりませんでした"
+        if progress_callback:
+            progress_callback(0, f"レビュー未検出、リトライ中... ({retry + 1}/5)")
         try:
             session.close()
         except Exception:
             pass
 
-    raise RuntimeError("Failed to load Google Maps reviews after 5 retries")
+    raise RuntimeError(f"Google Maps レビュー取得失敗 (5回リトライ済み): {last_error}")
 
 
 def _extract_reviews_from_dom(page, saved_ids: set) -> list[dict]:
