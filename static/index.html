@@ -26,6 +26,34 @@
         .header h1 { font-size:28px; font-weight:700; letter-spacing:-0.02em; background:linear-gradient(135deg,#1e40af,#7c3aed); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
         .header p { color:var(--text-secondary); font-size:15px; margin-top:4px; }
 
+        /* Page tabs */
+        .page-tabs { display:flex; gap:0; margin-bottom:24px; border-bottom:2px solid var(--border); }
+        .page-tab { padding:10px 20px; font-size:14px; font-weight:600; color:var(--text-tertiary); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; transition:all var(--transition); }
+        .page-tab:hover { color:var(--text-secondary); }
+        .page-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+        .tab-content { display:none; }
+        .tab-content.active { display:block; }
+
+        /* API docs */
+        .api-section { margin-bottom:24px; }
+        .api-section h2 { font-size:18px; font-weight:700; margin-bottom:12px; }
+        .api-section h3 { font-size:14px; font-weight:600; margin-bottom:8px; color:var(--text-secondary); }
+        .endpoint-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:12px; overflow:hidden; }
+        .endpoint-header { padding:14px 20px; display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--border-light); }
+        .method { padding:3px 8px; border-radius:4px; font-size:12px; font-weight:700; font-family:'SF Mono',Monaco,monospace; }
+        .method.get { background:#dbeafe; color:#1d4ed8; }
+        .method.post { background:#dcfce7; color:#16a34a; }
+        .method.delete { background:var(--danger-light); color:var(--danger); }
+        .endpoint-path { font-family:'SF Mono',Monaco,monospace; font-size:14px; font-weight:500; }
+        .endpoint-desc { padding:12px 20px; font-size:13px; color:var(--text-secondary); border-bottom:1px solid var(--border-light); }
+        .endpoint-code { padding:16px 20px; background:#1e1e2e; color:#cdd6f4; font-family:'SF Mono',Monaco,monospace; font-size:12px; line-height:1.7; overflow-x:auto; white-space:pre; border-radius:0 0 var(--radius) var(--radius); position:relative; }
+        .endpoint-code .copy-btn { position:absolute; top:8px; right:8px; padding:4px 8px; background:rgba(255,255,255,0.1); border:none; border-radius:4px; color:#cdd6f4; font-size:11px; cursor:pointer; font-family:inherit; }
+        .endpoint-code .copy-btn:hover { background:rgba(255,255,255,0.2); }
+        .code-label { font-size:11px; font-weight:600; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.05em; padding:12px 20px 4px; }
+        .json-key { color:#89b4fa; }
+        .json-str { color:#a6e3a1; }
+        .json-num { color:#fab387; }
+
         /* Input bar */
         .input-bar { display:flex; gap:8px; margin-bottom:20px; }
         .input-wrap { flex:1; display:flex; align-items:center; border:1.5px solid var(--border); border-radius:var(--radius-sm); background:var(--surface); transition:border-color var(--transition),box-shadow var(--transition); }
@@ -99,6 +127,11 @@
         <h1>Review Scraper</h1>
         <p>Google Maps・TripAdvisor の口コミをワンクリックで取得</p>
     </div>
+    <div class="page-tabs">
+        <div class="page-tab active" onclick="switchTab('scraper')">🔍 スクレイパー</div>
+        <div class="page-tab" onclick="switchTab('api')">📡 API</div>
+    </div>
+    <div class="tab-content active" id="tab-scraper">
     <div class="source-row">
         <div class="source-opt active" data-source="gmap" onclick="selectSource(this)">📍 Google Maps</div>
         <div class="source-opt" data-source="tripadvisor" onclick="selectSource(this)">🦉 TripAdvisor</div>
@@ -115,8 +148,153 @@
     </div>
     <div class="job-list" id="jobList"></div>
 </div>
+    </div><!-- end tab-scraper -->
+
+    <div class="tab-content" id="tab-api">
+        <div class="api-section">
+            <h2>API リファレンス</h2>
+            <p style="color:var(--text-secondary);font-size:14px;margin-bottom:20px">REST APIで口コミ取得を自動化できます。Base URL: <code style="background:var(--surface-hover);padding:2px 6px;border-radius:4px;font-size:13px">https://review-scraper-199337986055.asia-northeast1.run.app</code></p>
+
+            <h3>スクレイピング開始</h3>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="endpoint-path">/scrape</span>
+                </div>
+                <div class="endpoint-desc">スクレイピングジョブを非同期で開始します。即座にjob_idが返ります。</div>
+                <div class="code-label">リクエスト</div>
+                <div class="endpoint-code"><button class="copy-btn" onclick="copyCode(this)">コピー</button>curl -X POST https://review-scraper-199337986055.asia-northeast1.run.app/scrape \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://www.google.com/maps/place/...", "source": "gmap"}'</div>
+                <div class="code-label">レスポンス (202 Accepted)</div>
+                <div class="endpoint-code">{"job_id": "a1b2c3d4", "status": "running"}</div>
+            </div>
+
+            <h3>ジョブ状態確認</h3>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="endpoint-path">/jobs/{job_id}</span>
+                </div>
+                <div class="endpoint-desc">ジョブの進捗・結果を取得。status が "done" のとき reviews 配列が含まれます。</div>
+                <div class="code-label">リクエスト</div>
+                <div class="endpoint-code"><button class="copy-btn" onclick="copyCode(this)">コピー</button>curl https://review-scraper-199337986055.asia-northeast1.run.app/jobs/a1b2c3d4</div>
+                <div class="code-label">レスポンス (実行中)</div>
+                <div class="endpoint-code">{"job_id": "a1b2c3d4", "status": "running", "progress": 45, "message": "スクロール中... 45件取得", "review_count": 45}</div>
+                <div class="code-label">レスポンス (完了)</div>
+                <div class="endpoint-code">{"job_id": "a1b2c3d4", "status": "done", "review_count": 150,
+ "reviews": [
+   {"review_id": "xxx", "author": "田中太郎", "rating": "5", "date": "1か月前", "comment": "最高でした！"},
+   ...
+ ]}</div>
+            </div>
+
+            <h3>CSV ダウンロード</h3>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="endpoint-path">/jobs/{job_id}/csv</span>
+                </div>
+                <div class="endpoint-desc">完了済みジョブの結果をCSV形式でダウンロード。</div>
+                <div class="code-label">リクエスト</div>
+                <div class="endpoint-code"><button class="copy-btn" onclick="copyCode(this)">コピー</button>curl -o reviews.csv https://review-scraper-199337986055.asia-northeast1.run.app/jobs/a1b2c3d4/csv</div>
+            </div>
+
+            <h3>実行ログ</h3>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="endpoint-path">/jobs/{job_id}/logs</span>
+                </div>
+                <div class="endpoint-desc">ジョブの実行ログ（タイムスタンプ付き）を取得。</div>
+                <div class="code-label">レスポンス</div>
+                <div class="endpoint-code">[
+  {"time": "2026-03-06T10:15:29Z", "message": "セッション開始中... (試行 1/5)"},
+  {"time": "2026-03-06T10:15:35Z", "message": "Cookie取得中..."},
+  {"time": "2026-03-06T10:16:10Z", "message": "スクロール中... 15件取得"},
+  ...
+]</div>
+            </div>
+
+            <h3>ジョブ一覧</h3>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="endpoint-path">/jobs</span>
+                </div>
+                <div class="endpoint-desc">全ジョブの一覧（レビューデータなし）。新しい順にソート。</div>
+                <div class="code-label">リクエスト</div>
+                <div class="endpoint-code"><button class="copy-btn" onclick="copyCode(this)">コピー</button>curl https://review-scraper-199337986055.asia-northeast1.run.app/jobs</div>
+            </div>
+
+            <h3>ジョブ削除</h3>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <span class="method delete">DELETE</span>
+                    <span class="endpoint-path">/jobs/{job_id}</span>
+                </div>
+                <div class="endpoint-desc">ジョブとレビューデータを削除。</div>
+                <div class="code-label">リクエスト</div>
+                <div class="endpoint-code"><button class="copy-btn" onclick="copyCode(this)">コピー</button>curl -X DELETE https://review-scraper-199337986055.asia-northeast1.run.app/jobs/a1b2c3d4</div>
+            </div>
+        </div>
+
+        <div class="api-section">
+            <h3>ソース</h3>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;font-size:14px;">
+                <table style="width:100%;font-size:13px;border-collapse:collapse;">
+                    <tr><td style="padding:6px 12px;font-weight:600;"><code>gmap</code></td><td style="padding:6px 12px;">Google Maps（google.com/maps, google.co.jp/maps, maps.app.goo.gl, share.google）</td></tr>
+                    <tr><td style="padding:6px 12px;font-weight:600;border-top:1px solid var(--border-light)"><code>tripadvisor</code></td><td style="padding:6px 12px;border-top:1px solid var(--border-light)">TripAdvisor（tripadvisor.com, tripadvisor.jp 等）</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="api-section">
+            <h3>Python サンプル</h3>
+            <div class="endpoint-card">
+                <div class="endpoint-code"><button class="copy-btn" onclick="copyCode(this)">コピー</button>import requests, time
+
+BASE = "https://review-scraper-199337986055.asia-northeast1.run.app"
+
+# 1. Start scraping
+resp = requests.post(f"{BASE}/scrape", json={
+    "url": "https://www.google.com/maps/place/...",
+    "source": "gmap"
+})
+job_id = resp.json()["job_id"]
+
+# 2. Poll for completion
+while True:
+    status = requests.get(f"{BASE}/jobs/{job_id}").json()
+    print(f"{status['message']} ({status['review_count']}件)")
+    if status["status"] in ("done", "failed"):
+        break
+    time.sleep(3)
+
+# 3. Download results
+if status["status"] == "done":
+    reviews = status["reviews"]
+    print(f"取得完了: {len(reviews)}件")</div>
+            </div>
+        </div>
+    </div><!-- end tab-api -->
+
 <script>
-let currentSource = 'gmap';
+// Tab switching
+    function switchTab(tab) {
+        document.querySelectorAll('.page-tab').forEach(t=>t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+        document.querySelector('.page-tab[onclick*="'+tab+'"]').classList.add('active');
+        document.getElementById('tab-'+tab).classList.add('active');
+    }
+    function copyCode(btn) {
+        const code = btn.parentElement.textContent.replace('コピー','').trim();
+        navigator.clipboard.writeText(code);
+        btn.textContent = '✓';
+        setTimeout(()=>btn.textContent='コピー', 1500);
+    }
+
+    let currentSource = 'gmap';
 let pollTimers = {};
     let openLogs = new Set();   // jobIds with logs open
     let openResults = new Set(); // jobIds with results open
