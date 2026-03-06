@@ -50,7 +50,7 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
 
         result = {"reviews": [], "error": None}
 
-        def make_action(base, pcb, res, st):
+        def make_action(base, pcb, rsc, res, st):
             """Create page_action closure with current attempt's variables."""
             def action(page):
                 html = page.content()
@@ -200,7 +200,7 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
             return action
 
         try:
-            action_fn = make_action(base_url, progress_callback, result, start_time)
+            action_fn = make_action(base_url, progress_callback, review_save_callback, result, start_time)
 
             # 全試行直接（Tor不使用、失敗時はインスタンス切替リトライ）
             # 試行1,3,5: google_search=True
