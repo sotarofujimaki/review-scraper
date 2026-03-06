@@ -202,18 +202,11 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
         try:
             action_fn = make_action(base_url, progress_callback, result, start_time)
 
-            # 試行1: 直接 + google_search=True
-            # 試行2: 直接 + google_search=False
-            # 試行3-5: Tor + google_search=True
-            if attempt == 0:
-                use_google_search = True
-                use_proxy = None
-            elif attempt == 1:
-                use_google_search = False
-                use_proxy = None
-            else:
-                use_google_search = True
-                use_proxy = TOR_PROXY_URL if is_tor_available() else None
+            # 全試行直接（Tor不使用、失敗時はインスタンス切替リトライ）
+            # 試行1,3,5: google_search=True
+            # 試行2,4: google_search=False
+            use_google_search = (attempt % 2 == 0)
+            use_proxy = None
 
             fetch_kwargs = dict(
                 headless=True,
