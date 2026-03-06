@@ -9,7 +9,7 @@ import re
 import time
 
 
-def scrape_tripadvisor_reviews(url: str, progress_callback=None) -> list[dict]:
+def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_callback=None) -> list[dict]:
     """Scrape all reviews from a TripAdvisor URL with pagination.
 
     Uses StealthyFetcher with google_search to bypass DataDome,

@@ -97,17 +97,6 @@ def get_job(job_id: str):
     return JSONResponse(content=resp)
 
 
-@app.get("/jobs/{job_id}/csv")
-def get_job_csv(job_id: str):
-    job = db.get_job(job_id)
-    if not job:
-        return JSONResponse(content={"error": "Job not found"}, status_code=404)
-    if job.get("status") != "done":
-        return JSONResponse(content={"error": "Job not finished"}, status_code=400)
-    reviews = db.get_job_reviews(job_id)
-    return _csv_response(reviews)
-
-
 @app.get("/jobs")
 def list_jobs():
     return JSONResponse(content=db.list_jobs())
@@ -144,10 +133,14 @@ async def _run_scrape(job_id: str, url: str, source: Source):
             db.update_job(job_id, progress=count, message=message, review_count=count)
             db.append_log(job_id, message)
 
+        def review_save_callback(reviews_batch: list[dict]):
+            """Save reviews incrementally as they are collected."""
+            db.save_review_batch(job_id, reviews_batch)
+
         if source in (Source.google, Source.gmap):
-            coro = asyncio.to_thread(scrape_gmap_reviews, url, progress_callback)
+            coro = asyncio.to_thread(scrape_gmap_reviews, url, progress_callback, review_save_callback)
         else:
-            coro = asyncio.to_thread(scrape_tripadvisor_reviews, url, progress_callback)
+            coro = asyncio.to_thread(scrape_tripadvisor_reviews, url, progress_callback, review_save_callback)
 
         # 10 minute overall timeout
         try:
@@ -159,12 +152,10 @@ async def _run_scrape(job_id: str, url: str, source: Source):
             db.append_log(job_id, "10分タイムアウトで強制終了")
             return
 
-        # Save reviews to Firestore subcollection
-        db.save_reviews(job_id, reviews)
-        # Update in-memory + Firestore doc
+        # Reviews already saved incrementally via review_save_callback
         duration = int(_time.time() - _start)
         db.update_job(job_id, status="done", progress=len(reviews), duration=duration,
-                      message=f"完了: {len(reviews)}件取得", reviews=reviews)
+                      message=f"完了: {len(reviews)}件取得")
     except Exception as e:
         duration = int(_time.time() - _start)
         db.update_job(job_id, status="failed", error=str(e), duration=duration,

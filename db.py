@@ -87,6 +87,19 @@ def save_reviews(job_id: str, reviews: list[dict]):
         batch.commit()
 
 
+def save_review_batch(job_id: str, reviews: list[dict]):
+    """Incrementally save a batch of reviews to Firestore subcollection."""
+    db = _get_db()
+    if not db or not reviews:
+        return
+    coll = db.collection(COLLECTION).document(job_id).collection("reviews")
+    batch = db.batch()
+    for review in reviews:
+        ref = coll.document(review.get("review_id") or str(hash(str(review))))
+        batch.set(ref, review)
+    batch.commit()
+
+
 def get_job(job_id: str) -> dict | None:
     # Try in-memory first
     if job_id in _mem:

@@ -251,10 +251,9 @@ while True:
 # 3. 結果取得
 if s["status"] == "done":
     print(f"完了: {s['review_count']}件 ({s.get('duration',0)}秒)")
-    # CSV download
-    csv = requests.get(f"{BASE}/jobs/{job_id}/csv")
-    with open("reviews.csv", "wb") as f:
-        f.write(csv.content)</div>
+    # JSON download
+    reviews = requests.get(f"{BASE}/jobs/{job_id}/reviews").json()
+    print(f"{len(reviews)} reviews")</div>
       </div>
     </div>
 

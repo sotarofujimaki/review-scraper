@@ -96,7 +96,7 @@ def _ensure_reviews_tab(url: str) -> str:
     return url
 
 
-def scrape_gmap_reviews(url: str, progress_callback=None) -> list[dict]:
+def scrape_gmap_reviews(url: str, progress_callback=None, review_save_callback=None) -> list[dict]:
     """Scrape all reviews from a Google Maps URL.
 
     Uses StealthySession with direct Playwright page manipulation.
@@ -112,7 +112,7 @@ def scrape_gmap_reviews(url: str, progress_callback=None) -> list[dict]:
     session = None
     try:
         page, session = _start_session(url, progress_callback)
-        reviews = _collect_all_reviews(page, progress_callback)
+        reviews = _collect_all_reviews(page, progress_callback, review_save_callback)
         return reviews
     finally:
         if session:
