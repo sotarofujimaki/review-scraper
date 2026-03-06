@@ -52,6 +52,21 @@ def index():
 
 @app.post("/scrape")
 async def scrape_async(req: ScrapeRequest):
+    # Check for duplicate URL (within 5 minutes)
+    from datetime import datetime, timezone, timedelta
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
+    for existing in db.list_jobs(limit=20):
+        if (existing.get("url") == req.url
+            and existing.get("status") == "running"
+            and existing.get("created_at")):
+            try:
+                t = datetime.fromisoformat(existing["created_at"])
+                if t > cutoff:
+                    return JSONResponse(
+                        content={"error": f"同じURLのジョブが実行中です (ID: {existing['job_id']})"},
+                        status_code=409)
+            except Exception:
+                pass
     job_id = str(uuid.uuid4())[:8]
     db.create_job(job_id, req.url, req.source.value)
     asyncio.create_task(_run_scrape(job_id, req.url, req.source))
@@ -75,8 +90,7 @@ def get_job(job_id: str):
         "duration": job.get("duration"),
     }
     if job.get("status") in ("done", "failed"):
-        if job.get("status") == "done":
-            resp["reviews"] = db.get_job_reviews(job_id)
+        # Reviews available at GET /jobs/{id}/reviews
         if job.get("error"):
             resp["error"] = job["error"]
     return JSONResponse(content=resp)
@@ -97,6 +111,17 @@ def get_job_csv(job_id: str):
 def list_jobs():
     return JSONResponse(content=db.list_jobs())
 
+
+
+@app.get("/jobs/{job_id}/reviews")
+def get_job_reviews(job_id: str):
+    job = db.get_job(job_id)
+    if not job:
+        return JSONResponse(content={"error": "Job not found"}, status_code=404)
+    if job.get("status") != "done":
+        return JSONResponse(content={"error": "Job not finished"}, status_code=400)
+    reviews = db.get_job_reviews(job_id)
+    return JSONResponse(content=reviews)
 
 @app.delete("/jobs/{job_id}")
 def delete_job(job_id: str):

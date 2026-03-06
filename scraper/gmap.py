@@ -412,8 +412,11 @@ def _collect_all_reviews(page, progress_callback=None) -> list[dict]:
             new = _extract_reviews_from_dom(page, saved_ids)
             all_reviews.extend(new)
             _cleanup_heavy_elements(page)
-            if progress_callback and new:
-                progress_callback(len(all_reviews), f"スクロール中... {len(all_reviews)}件取得")
+            if progress_callback:
+                if new:
+                    progress_callback(len(all_reviews), f"スクロール中... {len(all_reviews)}件取得")
+                elif i % 15 == 14:
+                    progress_callback(len(all_reviews), f"スクロール中... {len(all_reviews)}件 (新規なし {no_new+1}/5)")
             if len(new) == 0:
                 no_new += 1
             else:

@@ -304,7 +304,7 @@ async function pollJob(id){
     // Auto-refresh logs if open
     if(openPanels[id]==='logs')loadLogs(id);
   }else{
-    clearInterval(polls[id]);delete polls[id];if(d.reviews)cache[id]=d.reviews;render()
+    clearInterval(polls[id]);delete polls[id];render()
   }}catch{}
 }
 function patchRunning(id,j){
@@ -368,7 +368,7 @@ function render(){
 function showPanel(id,mode){if(openPanels[id]===mode){delete openPanels[id];render();return}openPanels[id]=mode;render()}
 function switchDetail(id,mode){openPanels[id]=mode;render()}
 
-async function loadResults(id){const tbody=document.getElementById('tbody-'+id);if(!tbody)return;if(!cache[id]){try{const r=await fetch('/jobs/'+id);const d=await r.json();if(d.reviews)cache[id]=d.reviews}catch{}}const revs=cache[id]||[];tbody.innerHTML=revs.map(r=>`<tr><td><strong>${esc(r.author||'—')}</strong></td><td>${stars(r.rating)}</td><td style="white-space:nowrap;color:var(--text-tertiary);font-size:11px">${esc(r.date)}</td><td class="comment">${esc(r.comment||'（コメントなし）')}</td></tr>`).join('')}
+async function loadResults(id){const tbody=document.getElementById('tbody-'+id);if(!tbody)return;if(!cache[id]){try{const r=await fetch('/jobs/'+id+'/reviews');const d=await r.json();if(Array.isArray(d))cache[id]=d}catch{}}const revs=cache[id]||[];tbody.innerHTML=revs.map(r=>`<tr><td><strong>${esc(r.author||'—')}</strong></td><td>${stars(r.rating)}</td><td style="white-space:nowrap;color:var(--text-tertiary);font-size:11px">${esc(r.date)}</td><td class="comment">${esc(r.comment||'（コメントなし）')}</td></tr>`).join('')}
 
 async function loadLogs(id){const el=document.getElementById('logs-'+id);if(!el)return;try{const r=await fetch('/jobs/'+id+'/logs');const logs=await r.json();if(!logs.length){el.innerHTML='<div style="color:var(--text-tertiary);font-size:11px;padding:4px">ログなし</div>';return}el.innerHTML=logs.map(l=>{const t=new Date(l.time);return`<div class="log-line"><span class="log-t">${t.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span><span class="log-m">${esc(l.message)}</span></div>`}).join('');el.scrollTop=el.scrollHeight}catch{el.innerHTML='<div style="color:var(--danger);font-size:11px">取得失敗</div>'}}
 
