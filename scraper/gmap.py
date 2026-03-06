@@ -11,7 +11,7 @@ import glob
 def _resolve_url(url: str) -> str:
     """Resolve short URLs and ensure full Google Maps URL format."""
     # Expand short URLs (maps.app.goo.gl, goo.gl)
-    if "goo.gl/" in url or "maps.app.goo.gl/" in url:
+    if "goo.gl/" in url or "maps.app.goo.gl/" in url or "share.google/" in url:
         try:
             result = subprocess.run(
                 ["curl", "-sI", "-L", url],
@@ -28,6 +28,21 @@ def _resolve_url(url: str) -> str:
 
 
 
+    return url
+
+
+def _resolve_share_url_in_browser(page, url: str) -> str:
+    """Resolve share.google URLs using the browser (JS redirect)."""
+    if "share.google" not in url:
+        return url
+    try:
+        page.goto(url, wait_until="domcontentloaded", timeout=15000)
+        page.wait_for_timeout(3000)
+        final_url = page.url
+        if "google.com/maps" in final_url or "google.co.jp/maps" in final_url:
+            return final_url
+    except Exception:
+        pass
     return url
 
 
@@ -64,7 +79,7 @@ def scrape_gmap_reviews(url: str, progress_callback=None) -> list[dict]:
     url = _ensure_reviews_tab(url)
     _clean_browser_profiles()
     # Validate domain
-    if not any(d in url.lower() for d in ["google.com/maps", "google.co.jp/maps", "maps.app.goo.gl", "maps.google"]):
+    if not any(d in url.lower() for d in ["google.com/maps", "google.co.jp/maps", "maps.app.goo.gl", "maps.google", "share.google"]):
         raise ValueError("Google MapsのURLを入力してください")
 
     session = None
@@ -174,6 +189,9 @@ def _start_session(url: str):
 
         # Warm up: visit Google to get cookies (critical for reviews tab)
         _warm_up_session(page, session)
+
+        # Resolve share.google URLs in browser (JS redirect)
+        url = _resolve_share_url_in_browser(page, url)
 
         referer = generate_convincing_referer(url)
         page.goto(
