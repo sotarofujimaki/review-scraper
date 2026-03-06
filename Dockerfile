@@ -19,7 +19,6 @@ RUN pip install --no-cache-dir -r requirements.txt \
 
 COPY .build-timestamp /tmp/.build-timestamp
 COPY . .
-RUN wc -c /app/static/index.html && grep -c rerunJob /app/static/index.html || true
 
 EXPOSE 8080
 
