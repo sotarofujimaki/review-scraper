@@ -60,7 +60,7 @@ def _ensure_reviews_tab(url: str) -> str:
     return url
 
 
-def scrape_gmap_reviews(url: str) -> list[dict]:
+def scrape_gmap_reviews(url: str, progress_callback=None) -> list[dict]:
     """Scrape all reviews from a Google Maps URL.
 
     Uses StealthySession with direct Playwright page manipulation.
@@ -72,7 +72,7 @@ def scrape_gmap_reviews(url: str) -> list[dict]:
     session = None
     try:
         page, session = _start_session(url)
-        return _collect_all_reviews(page)
+        return _collect_all_reviews(page, progress_callback)
     finally:
         if session:
             try:
@@ -283,13 +283,15 @@ def _scroll_reviews(page):
     )
 
 
-def _collect_all_reviews(page) -> list[dict]:
+def _collect_all_reviews(page, progress_callback=None) -> list[dict]:
     """Scroll through all reviews and collect them incrementally."""
     saved_ids: set = set()
     all_reviews: list[dict] = []
 
     # Initial collection
     all_reviews.extend(_extract_reviews_from_dom(page, saved_ids))
+    if progress_callback:
+        progress_callback(len(all_reviews), f"初期読み込み: {len(all_reviews)}件")
 
     # Scroll loop
     no_new = 0
@@ -302,6 +304,8 @@ def _collect_all_reviews(page) -> list[dict]:
             new = _extract_reviews_from_dom(page, saved_ids)
             all_reviews.extend(new)
             _cleanup_heavy_elements(page)
+            if progress_callback and new:
+                progress_callback(len(all_reviews), f"スクロール中... {len(all_reviews)}件取得")
             if len(new) == 0:
                 no_new += 1
             else:

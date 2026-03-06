@@ -3,7 +3,7 @@ from scrapling.fetchers import StealthyFetcher
 import re
 
 
-def scrape_tripadvisor_reviews(url: str) -> list[dict]:
+def scrape_tripadvisor_reviews(url: str, progress_callback=None) -> list[dict]:
     """Scrape all reviews from a TripAdvisor URL with pagination.
 
     The URL should contain '{}' or 'Reviews-' as the insertion point for
@@ -29,6 +29,9 @@ def scrape_tripadvisor_reviews(url: str) -> list[dict]:
             if review:
                 all_reviews.append(review)
                 new_count += 1
+
+        if progress_callback:
+            progress_callback(len(all_reviews), f"ページ{page_num + 1}取得中... {len(all_reviews)}件")
 
         if new_count == 0:
             break
