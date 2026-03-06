@@ -138,7 +138,13 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                         pcb(len(all_reviews), f"パース結果: 成功{new_count} 失敗{parse_fails}/{len(cards)}")
 
                     if rsc and new_batch:
+                        if pcb:
+                            pcb(len(all_reviews), f"Firestore保存中... {len(new_batch)}件")
                         rsc(new_batch)
+                        if pcb:
+                            pcb(len(all_reviews), f"Firestore保存完了")
+                    elif pcb and not new_batch and cards:
+                        pcb(len(all_reviews), f"パース結果: 全{len(cards)}件失敗（new_batch空）")
 
                     if pcb:
                         pcb(len(all_reviews), f"ページ{page_num + 1}: {new_count}件取得 (合計{len(all_reviews)}件)")
