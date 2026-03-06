@@ -347,10 +347,30 @@ def _parse_review_card(card) -> dict | None:
         except Exception:
             continue
 
+    # Fallback: if no rating found, try extracting from raw card text
+    if not rating:
+        try:
+            full = card.text_content() or ""
+            # Look for bubble rating pattern in full text
+            import re
+            m = re.search(r'(\d)\s*[/／]\s*5', full)
+            if m:
+                rating = m.group(1)
+            else:
+                # Try star count from SVG/aria
+                svgs = card.query_selector_all('svg')
+                filled = 0
+                for svg in svgs:
+                    cls = svg.get_attribute("class") or ""
+                    if "fill" in cls.lower() or "full" in cls.lower():
+                        filled += 1
+                if filled > 0:
+                    rating = str(filled)
+        except Exception:
+            pass
+
     if not comment and not rating:
         return None
-    # Debug: log successful parse fields for verification
-    # (removed after debugging)
 
     return {
         "review_id": review_id, "author": author,

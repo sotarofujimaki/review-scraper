@@ -150,7 +150,14 @@ def _click_reviews_tab(page):
     for tab in tabs:
         text = (tab.text_content() or "").strip()
         if "クチコミ" in text or "口コミ" in text or "review" in text.lower():
-            tab.click()
+            try:
+                tab.click(timeout=10000)  # 10s timeout
+            except Exception:
+                # Fallback: JS click
+                try:
+                    tab.evaluate("el => el.click()")
+                except Exception:
+                    pass
             time.sleep(2)
             return True
 
@@ -176,7 +183,13 @@ def _sort_by_newest(page, progress_callback=None):
         sort_btn = query_first(page, GOOGLE["sort_button"])
         if not sort_btn:
             return
-        sort_btn.click()
+        try:
+            sort_btn.click(timeout=10000)
+        except Exception:
+            try:
+                sort_btn.evaluate("el => el.click()")
+            except Exception:
+                return
         time.sleep(2)
         page.evaluate("""() => {
             const items = document.querySelectorAll('[role="menuitemradio"]');
