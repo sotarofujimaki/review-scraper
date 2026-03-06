@@ -34,8 +34,6 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
     if "tripadvisor" not in url.lower():
         raise ValueError("TripAdvisorのURLを入力してください")
 
-    # .com → .jp に変換（日本語版=全言語レビュー表示、英語版=Englishフィルタがかかる）
-    url = re.sub(r'tripadvisor\.com', 'tripadvisor.jp', url, flags=re.IGNORECASE)
     base_url = _prepare_base_url(url)
     start_time = time.time()
 
@@ -55,6 +53,46 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
         def make_action(base, pcb, rsc, res, st):
             """Create page_action closure with current attempt's variables."""
             def action(page):
+                def _apply_all_languages_filter():
+                    """フィルタモーダルでAll languagesを選択する"""
+                    try:
+                        page.evaluate("""() => {
+                            document.querySelectorAll('.ab-iam-root, iframe[title="Modal Message"]').forEach(el => el.remove());
+                            const fb = document.querySelector('[aria-label*="filter" i]');
+                            if (fb) fb.dispatchEvent(new MouseEvent('click', {bubbles: true}));
+                        }""")
+                        page.wait_for_timeout(2500)
+                        page.evaluate("() => document.querySelectorAll('.ab-iam-root, iframe[title=\"Modal Message\"]').forEach(el => el.remove())")
+                        page.wait_for_timeout(500)
+                        modal = page.query_selector('[role="dialog"]')
+                        if not modal:
+                            return False
+                        # English解除
+                        for btn in modal.query_selector_all('button'):
+                            if (btn.text_content() or '').strip() == 'English':
+                                btn.click(force=True)
+                                page.wait_for_timeout(1500)
+                                break
+                        # All languages選択
+                        modal2 = page.query_selector('[role="dialog"]')
+                        if modal2:
+                            for opt in modal2.query_selector_all('[role="option"]'):
+                                t = (opt.text_content() or '').strip()
+                                if 'All language' in t or 'すべての言語' in t:
+                                    opt.click(force=True)
+                                    page.wait_for_timeout(500)
+                                    break
+                            modal3 = page.query_selector('[role="dialog"]')
+                            if modal3:
+                                for btn in modal3.query_selector_all('button'):
+                                    if (btn.text_content() or '').strip() == 'Apply':
+                                        btn.click(force=True)
+                                        page.wait_for_timeout(2500)
+                                        return True
+                        return False
+                    except Exception:
+                        return False
+
                 html = page.content()
                 if "captcha-delivery" in html:
                     res["error"] = "CAPTCHA on landing page"
@@ -74,10 +112,10 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                     pcb(0, "全言語フィルタ適用: filterLang=ALL")
                 page.goto(page_url, wait_until="domcontentloaded", timeout=TA_PAGE_TIMEOUT_MS)
                 for _w in range(TA_CARD_WAIT_SECONDS):
-                    time.sleep(1)
+                    page.wait_for_timeout(1000)
                     if query_first(page, TRIPADVISOR["review_card"]):
                         break
-                time.sleep(2)
+                page.wait_for_timeout(2000)
 
                 html2 = page.content()
                 if "captcha-delivery" in html2:
@@ -86,9 +124,10 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                         pcb(0, "レストランページでCAPTCHA検出")
                     return
 
-                # .jpドメイン使用で全言語レビュー表示（フィルタ操作不要）
+                # 言語フィルタを「All languages」に変更
+                filter_ok = _apply_all_languages_filter()
                 if pcb:
-                    pcb(0, f"言語: 日本語版 (tripadvisor.jp) → 全言語レビュー表示")
+                    pcb(0, f"言語フィルタ: {'全言語適用' if filter_ok else 'スキップ（モーダル未検出）'}")
 
                 # フィルタ変更後にカード検出
                 cards = query_all_first(page, TRIPADVISOR["review_card"])
@@ -183,9 +222,12 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                         pcb(len(all_reviews), f"ページ{page_num + 1}へ遷移中... ({next_url[-30:]})")
                     try:
                         page.goto(next_url, wait_until="domcontentloaded", timeout=TA_PAGE_TIMEOUT_MS)
+                        page.wait_for_timeout(2000)
+                        # ページ遷移後にフィルタ再適用
+                        _apply_all_languages_filter()
                         card_found = False
                         for _w in range(TA_CARD_WAIT_SECONDS):
-                            time.sleep(1)
+                            page.wait_for_timeout(1000)
                             if query_first(page, TRIPADVISOR["review_card"]):
                                 card_found = True
                                 break
