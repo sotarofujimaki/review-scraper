@@ -136,9 +136,6 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                     new_count = len(new_batch)
                     if pcb and parse_fails:
                         pcb(len(all_reviews), f"パース結果: 成功{new_count} 失敗{parse_fails}/{len(cards)}")
-                        # Save parsed reviews incrementally
-                        if review_save_callback and page_reviews:
-                            review_save_callback(page_reviews)
 
                     if rsc and new_batch:
                         rsc(new_batch)
