@@ -532,6 +532,9 @@ def _collect_all_reviews(
     no_new = 0
     last_new_time = time.time()
 
+    if progress_callback:
+        progress_callback(len(all_reviews), f"スクロール開始 (最大{GOOGLE_MAX_SCROLLS}回)")
+
     for i in range(GOOGLE_MAX_SCROLLS):
         try:
             _scroll_reviews(page)
@@ -558,11 +561,11 @@ def _collect_all_reviews(
                 review_save_callback(new)
             _cleanup_heavy_elements(page)
             if progress_callback:
+                elapsed = int(time.time() - last_new_time)
                 if new:
                     progress_callback(len(all_reviews), f"スクロール中... {len(all_reviews)}件取得 (scroll {i+1})")
-                elif i % 6 == 5:
-                    elapsed = int(time.time() - last_new_time)
-                    progress_callback(len(all_reviews), f"スクロール中... {len(all_reviews)}件 (新規なし {elapsed}秒/{no_new+1}回)")
+                else:
+                    progress_callback(len(all_reviews), f"スクロール中... {len(all_reviews)}件 (新規なし {elapsed}秒, scroll {i+1})")
             if len(new) == 0:
                 no_new += 1
             else:

@@ -91,8 +91,12 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                         pcb(0, "レビューカード未検出")
                     return
 
+                actual_url = page.evaluate("() => window.location.href")
                 if pcb:
                     pcb(0, f"レビュー検出OK ({len(cards)}件)、収集開始...")
+                    pcb(0, f"ページURL: {actual_url[:100]}")
+                    has_filter = "filterLang" in actual_url
+                    pcb(0, f"言語フィルタ: {'ALL（有効）' if has_filter else 'なし（デフォルト=英語の可能性）'}")
 
                 all_reviews = []
                 page_num = 0
