@@ -8,9 +8,9 @@ STALE_JOB_MINUTES = 30           # Mark running jobs older than this as failed o
 DUPLICATE_URL_MINUTES = 5        # Reject same URL within this window
 
 # --- Google Maps ---
-GOOGLE_PAGE_TIMEOUT_MS = 90_000  # Page load timeout
-GOOGLE_WARMUP_TIMEOUT_MS = 30_000
-GOOGLE_TAB_WAIT_SECONDS = 8     # Wait after domcontentloaded for dynamic content
+GOOGLE_PAGE_TIMEOUT_MS = 30_000  # 30s (was 90s)  # Page load timeout
+GOOGLE_WARMUP_TIMEOUT_MS = 15_000  # 15s (was 30s)
+GOOGLE_TAB_WAIT_SECONDS = 5     # 5s (was 8s)     # Wait after domcontentloaded for dynamic content
 GOOGLE_SCROLL_INTERVAL = 1.0
 GOOGLE_STALL_SECONDS = 60       # No new reviews for this long → finish
 GOOGLE_NO_NEW_THRESHOLD = 5     # Consecutive empty scroll rounds → finish

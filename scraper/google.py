@@ -57,7 +57,7 @@ def _resolve_share_url_in_browser(page, url: str) -> str:
         return url
     try:
         page.goto(url, wait_until="domcontentloaded", timeout=30000)
-        page.wait_for_timeout(3000)
+        page.wait_for_timeout(2000)
         final_url = page.url
         if "google.com/maps" in final_url or "google.co.jp/maps" in final_url:
             return final_url
