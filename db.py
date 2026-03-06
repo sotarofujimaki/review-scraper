@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 _firestore_client = None
 _USE_FIRESTORE = True
 
-COLLECTION = "scrape_jobs"
+from config import FIRESTORE_COLLECTION as COLLECTION, FIRESTORE_BATCH_SIZE
 
 
 def _get_db():
@@ -79,7 +79,7 @@ def save_reviews(job_id: str, reviews: list[dict]):
         ref = coll.document(review.get("review_id") or str(i))
         batch.set(ref, review)
         count += 1
-        if count >= 450:
+        if count >= FIRESTORE_BATCH_SIZE:
             batch.commit()
             batch = db.batch()
             count = 0
@@ -173,7 +173,6 @@ def delete_job(job_id: str):
 
 def append_log(job_id: str, message: str):
     """Append a timestamped log entry to the job."""
-    from datetime import datetime, timezone
     entry = {"time": datetime.now(timezone.utc).isoformat(), "message": message}
 
     # In-memory

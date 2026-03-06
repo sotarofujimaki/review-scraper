@@ -4,11 +4,23 @@ Uses google_search + page_action to bypass DataDome CAPTCHA.
 StealthyFetcher's browserforge fingerprints allow bypassing DataDome,
 while page_action gives us direct Playwright page control for navigation.
 """
-from scrapling.fetchers import StealthyFetcher
-from utils.date_parser import parse_japanese_date
-from css_selectors import TRIPADVISOR, query_first, query_all_first
 import re
 import time
+
+from scrapling.fetchers import StealthyFetcher
+
+from config import (
+    TA_PAGE_TIMEOUT_MS,
+    TA_REVIEWS_PER_PAGE,
+    TA_MAX_PAGES,
+    TA_MAX_TIME_SECONDS,
+    TA_CARD_WAIT_SECONDS,
+    TOR_PROXY_URL,
+    MAX_RETRIES,
+)
+from utils.date_parser import parse_japanese_date
+from utils.tor import is_tor_available
+from css_selectors import TRIPADVISOR, query_first, query_all_first
 
 
 def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_callback=None) -> list[dict]:
@@ -16,51 +28,47 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
 
     Uses StealthyFetcher with google_search to bypass DataDome,
     then navigates to target URL via page_action.
-    Retries up to 5 times. 30-minute timeout.
+    Retries up to MAX_RETRIES times. 30-minute timeout.
     """
     if "tripadvisor" not in url.lower():
         raise ValueError("TripAdvisorのURLを入力してください")
 
     base_url = _prepare_base_url(url)
     start_time = time.time()
-    max_time = 1800  # 30 minutes
 
-    # Extract domain for initial fetch (e.g. tripadvisor.jp)
     domain_match = re.search(r'(https?://[^/]+)', url)
     domain = domain_match.group(1) if domain_match else 'https://www.tripadvisor.jp'
 
     last_error = ""
-    for attempt in range(5):
-        if time.time() - start_time > max_time:
+    for attempt in range(MAX_RETRIES):
+        if time.time() - start_time > TA_MAX_TIME_SECONDS:
             break
 
         if progress_callback:
-            progress_callback(0, f"セッション開始中... (試行 {attempt + 1}/5)")
+            progress_callback(0, f"セッション開始中... (試行 {attempt + 1}/{MAX_RETRIES})")
 
         result = {"reviews": [], "error": None}
 
-        def make_action(base, pcb, res, st, mt):
+        def make_action(base, pcb, res, st):
             """Create page_action closure with current attempt's variables."""
             def action(page):
                 html = page.content()
                 if "captcha-delivery" in html:
                     res["error"] = "CAPTCHA on landing page"
                     if pcb:
-                        pcb(0, f"トップページでCAPTCHA検出")
+                        pcb(0, "トップページでCAPTCHA検出")
                     return
 
                 if pcb:
                     pcb(0, "トップページOK、レストランページへ遷移中...")
 
-                # Navigate to first page of reviews (all languages)
                 page_url = base.format("")
                 if "?" in page_url:
                     page_url += "&filterLang=ALL"
                 else:
                     page_url += "?filterLang=ALL"
-                page.goto(page_url, wait_until="domcontentloaded", timeout=30000)
-                # Wait for cards to render
-                for _w in range(10):
+                page.goto(page_url, wait_until="domcontentloaded", timeout=TA_PAGE_TIMEOUT_MS)
+                for _w in range(TA_CARD_WAIT_SECONDS):
                     time.sleep(1)
                     if query_first(page, TRIPADVISOR["review_card"]):
                         break
@@ -73,10 +81,7 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                         pcb(0, "レストランページでCAPTCHA検出")
                     return
 
-                # Check for review cards
                 cards = query_all_first(page, TRIPADVISOR["review_card"])
-
-
                 if not cards:
                     res["error"] = "No review cards found"
                     if pcb:
@@ -86,12 +91,11 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                 if pcb:
                     pcb(0, f"レビュー検出OK ({len(cards)}件)、収集開始...")
 
-                # Collect from all pages
                 all_reviews = []
                 page_num = 0
 
                 while True:
-                    if time.time() - st > mt:
+                    if time.time() - st > TA_MAX_TIME_SECONDS:
                         if pcb:
                             pcb(len(all_reviews), "30分タイムアウト、収集終了")
                         break
@@ -122,29 +126,27 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                         if pcb:
                             pcb(len(all_reviews), f"ページ{page_num + 1}: 新規0件、収集完了")
                         break
-                    if new_count < 15:
+                    if new_count < TA_REVIEWS_PER_PAGE:
                         if pcb:
-                            pcb(len(all_reviews), f"ページ{page_num + 1}: {new_count}件（15未満=最終ページ）、収集完了")
+                            pcb(len(all_reviews), f"ページ{page_num + 1}: {new_count}件（{TA_REVIEWS_PER_PAGE}未満=最終ページ）、収集完了")
                         break
 
                     page_num += 1
-                    if page_num >= 30:
+                    if page_num >= TA_MAX_PAGES:
                         break
 
-                    # Next page
-                    offset = f"-or{page_num * 15}"
+                    offset = f"-or{page_num * TA_REVIEWS_PER_PAGE}"
                     next_url = base.format(offset)
                     if "?" in next_url:
                         next_url += "&filterLang=ALL"
                     else:
-                        next_url += "?filterLang=ALL" 
+                        next_url += "?filterLang=ALL"
                     if pcb:
                         pcb(len(all_reviews), f"ページ{page_num + 1}へ遷移中... ({next_url[-30:]})")
                     try:
-                        page.goto(next_url, wait_until="domcontentloaded", timeout=30000)
-                        # Wait for cards to render
+                        page.goto(next_url, wait_until="domcontentloaded", timeout=TA_PAGE_TIMEOUT_MS)
                         card_found = False
-                        for _w in range(8):
+                        for _w in range(TA_CARD_WAIT_SECONDS):
                             time.sleep(1)
                             if query_first(page, TRIPADVISOR["review_card"]):
                                 card_found = True
@@ -169,7 +171,7 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
             return action
 
         try:
-            action_fn = make_action(base_url, progress_callback, result, start_time, max_time)
+            action_fn = make_action(base_url, progress_callback, result, start_time)
 
             fetch_kwargs = dict(
                 headless=True,
@@ -178,19 +180,10 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                 page_action=action_fn,
                 wait=5,
             )
-            # Use Tor proxy on retries
-            if attempt > 0:
-                import socket
-                try:
-                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    s.settimeout(3)
-                    if s.connect_ex(("127.0.0.1", 9050)) == 0:
-                        fetch_kwargs["proxy"] = "socks5://127.0.0.1:9050"
-                        if progress_callback:
-                            progress_callback(0, "Tor経由で接続中...")
-                    s.close()
-                except Exception:
-                    pass
+            if attempt > 0 and is_tor_available():
+                fetch_kwargs["proxy"] = TOR_PROXY_URL
+                if progress_callback:
+                    progress_callback(0, "Tor経由で接続中...")
 
             StealthyFetcher.fetch(
                 domain + "/",
@@ -200,7 +193,7 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
             if result["error"]:
                 last_error = result["error"]
                 if progress_callback:
-                    progress_callback(0, f"{result['error']}、リトライ... ({attempt + 1}/5)")
+                    progress_callback(0, f"{result['error']}、リトライ... ({attempt + 1}/{MAX_RETRIES})")
                 time.sleep(5)
                 continue
 
@@ -209,11 +202,11 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
         except Exception as e:
             last_error = str(e)
             if progress_callback:
-                progress_callback(0, f"エラー: {e}、リトライ... ({attempt + 1}/5)")
+                progress_callback(0, f"エラー: {e}、リトライ... ({attempt + 1}/{MAX_RETRIES})")
             time.sleep(3)
             continue
 
-    raise RuntimeError(f"TripAdvisor レビュー取得失敗 (5回リトライ済み): {last_error}")
+    raise RuntimeError(f"TripAdvisor レビュー取得失敗 ({MAX_RETRIES}回リトライ済み): {last_error}")
 
 
 def _prepare_base_url(url: str) -> str:
@@ -229,7 +222,6 @@ def _prepare_base_url(url: str) -> str:
 
 def _parse_review_card(card) -> dict | None:
     """Parse a single TripAdvisor review card (Playwright element)."""
-    # review_id
     review_id = ""
     try:
         links = card.query_selector_all('a[href*="ShowUserReviews"]')
@@ -272,7 +264,6 @@ def _parse_review_card(card) -> dict | None:
         for t in titles:
             txt = t.text_content() or ""
             if "バブル評価" in txt or "段階中" in txt or "of 5 bubbles" in txt:
-                import re
                 m = re.search(r'(\d)\s*$', txt.strip())
                 rating = m.group(1) if m else txt.strip()
                 break
@@ -280,7 +271,6 @@ def _parse_review_card(card) -> dict | None:
             bubble = card.query_selector("[class*='bubble']")
             if bubble:
                 raw = bubble.get_attribute("aria-label") or ""
-                import re
                 m = re.search(r'(\d)\s*$', raw)
                 rating = m.group(1) if m else raw
     except Exception:
