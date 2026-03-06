@@ -11,12 +11,16 @@ import glob
 
 
 def _renew_tor_circuit():
-    """Request new Tor circuit (new IP) via control port or by restarting."""
-    import socket
+    """Request new Tor circuit (new exit IP) and verify Tor is running."""
+    import socket, subprocess
     try:
-        # Simple approach: connect to Tor SOCKS to verify it's running
+        # Kill and restart Tor for a fresh circuit (most reliable way without ControlPort)
+        subprocess.run(["pkill", "-HUP", "tor"], timeout=5, capture_output=True)
+        time.sleep(3)  # Wait for new circuit
+        
+        # Verify SOCKS port is up
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(3)
+        s.settimeout(5)
         result = s.connect_ex(("127.0.0.1", 9050))
         s.close()
         return result == 0
@@ -219,21 +223,22 @@ def _sort_by_newest(page):
 def _start_session(url: str, progress_callback=None):
     """Start a StealthySession and navigate to the URL with retries."""
     import os, uuid
-    profile_dir = os.path.join(PROFILE_BASE, uuid.uuid4().hex[:8])
-    os.makedirs(profile_dir, exist_ok=True)
 
     last_error = ""
     for retry in range(5):
-        if progress_callback:
-            progress_callback(0, f"セッション開始中... (試行 {retry + 1}/5)")
+        # Fresh profile for each retry
+        profile_dir = os.path.join(PROFILE_BASE, uuid.uuid4().hex[:8])
+        os.makedirs(profile_dir, exist_ok=True)
 
-        # Remove stale SingletonLock if exists
-        lock_file = os.path.join(profile_dir, "SingletonLock")
-        if os.path.exists(lock_file):
-            os.remove(lock_file)
+        if progress_callback:
+            progress_callback(0, f"セッション開始中... (試行 {retry + 1}/5, profile: {os.path.basename(profile_dir)})")
 
         try:
             proxy = _get_proxy_for_retry(retry)
+            if proxy and progress_callback:
+                progress_callback(0, f"Tor回線更新済み、新IP経由で接続中...")
+            elif proxy:
+                pass
             session_kwargs = dict(
                 headless=True,
                 locale="ja-JP",
@@ -241,8 +246,6 @@ def _start_session(url: str, progress_callback=None):
             )
             if proxy:
                 session_kwargs["proxy"] = {"server": proxy}
-                if progress_callback:
-                    progress_callback(0, f"Tor経由で接続中...")
             session = StealthySession(**session_kwargs)
             session.start()
         except Exception as e:

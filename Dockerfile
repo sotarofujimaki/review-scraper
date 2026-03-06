@@ -21,4 +21,4 @@ COPY . .
 
 EXPOSE 8080
 
-CMD bash -c "tor --SocksPort 9050 --DataDirectory /tmp/tor-data --Log 'notice stdout' &>/dev/null & sleep 2 && uvicorn main:app --host 0.0.0.0 --port 8080"
+CMD bash -c "tor --SocksPort 9050 --DataDirectory /tmp/tor-data --Log 'notice stdout' &>/dev/null & sleep 5 && uvicorn main:app --host 0.0.0.0 --port 8080"
