@@ -29,10 +29,15 @@ def scrape(req: ScrapeRequest, format: str = Query(default="json")):
 
     Returns JSON by default, or CSV with ?format=csv.
     """
-    if req.source == Source.gmap:
-        reviews = scrape_gmap_reviews(req.url)
-    else:
-        reviews = scrape_tripadvisor_reviews(req.url)
+    try:
+        if req.source == Source.gmap:
+            reviews = scrape_gmap_reviews(req.url)
+        else:
+            reviews = scrape_tripadvisor_reviews(req.url)
+    except ValueError as e:
+        return JSONResponse(content={"error": str(e)}, status_code=400)
+    except RuntimeError as e:
+        return JSONResponse(content={"error": str(e)}, status_code=503)
 
     if format == "csv":
         return _csv_response(reviews)

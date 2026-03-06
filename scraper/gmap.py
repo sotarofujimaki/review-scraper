@@ -2,6 +2,62 @@
 from scrapling.fetchers import StealthySession
 from scrapling.engines.toolbelt.fingerprints import generate_convincing_referer
 import time
+import subprocess
+import re
+import shutil
+import glob
+
+
+def _resolve_url(url: str) -> str:
+    """Resolve short URLs and ensure full Google Maps URL format."""
+    # Expand short URLs (maps.app.goo.gl, goo.gl)
+    if "goo.gl/" in url or "maps.app.goo.gl/" in url:
+        try:
+            result = subprocess.run(
+                ["curl", "-sI", "-L", url],
+                capture_output=True, text=True, timeout=15
+            )
+            locations = re.findall(
+                r'location:\s*(https://www\.google\.com/maps/place/[^\r\n]+)',
+                result.stdout, re.IGNORECASE
+            )
+            if locations:
+                url = locations[-1]
+        except Exception:
+            pass
+
+    # Validate URL has coordinates (@lat,lng)
+    if "/maps/place/" in url and "/@" not in url:
+        raise ValueError(
+            "URLに座標情報がありません。Google Mapsで店舗ページを開き、"
+            "口コミタブをクリックした状態のURLを使用してください。"
+            "または maps.app.goo.gl の短縮URLを使ってください。"
+        )
+
+    return url
+
+
+def _clean_browser_profiles():
+    """Clean up old browser profiles to avoid detection."""
+    import tempfile
+    tmp = tempfile.gettempdir()
+    for pattern in ["patchright*", "playwright*"]:
+        for path in glob.glob(f"{tmp}/{pattern}"):
+            try:
+                shutil.rmtree(path, ignore_errors=True)
+            except Exception:
+                pass
+
+
+def _ensure_reviews_tab(url: str) -> str:
+    """Ensure URL has !9m1!1b1 parameter to show reviews tab by default."""
+    if "!9m1!1b1" not in url:
+        if "/data=" in url:
+            url = url.replace("/data=", "/data=!9m1!1b1")
+        else:
+            sep = "&" if "?" in url else "?"
+            url = url + sep + "data=!9m1!1b1"
+    return url
 
 
 def scrape_gmap_reviews(url: str) -> list[dict]:
@@ -10,6 +66,9 @@ def scrape_gmap_reviews(url: str) -> list[dict]:
     Uses StealthySession with direct Playwright page manipulation.
     Includes retry logic (up to 5 attempts) for the ~30% failure rate.
     """
+    url = _resolve_url(url)
+    url = _ensure_reviews_tab(url)
+    _clean_browser_profiles()
     session = None
     try:
         page, session = _start_session(url)
