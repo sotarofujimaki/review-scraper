@@ -8,584 +8,323 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #f8f9fb;
-            --surface: #ffffff;
-            --surface-hover: #f3f4f6;
-            --border: #e5e7eb;
-            --border-light: #f0f1f3;
-            --text: #111827;
-            --text-secondary: #6b7280;
-            --text-tertiary: #9ca3af;
-            --accent: #2563eb;
-            --accent-hover: #1d4ed8;
-            --accent-light: #eff6ff;
-            --accent-border: #bfdbfe;
-            --success: #059669;
-            --success-light: #ecfdf5;
-            --success-border: #a7f3d0;
-            --warning: #d97706;
-            --warning-light: #fffbeb;
-            --warning-border: #fde68a;
-            --danger: #dc2626;
-            --danger-light: #fef2f2;
-            --danger-border: #fecaca;
-            --radius: 12px;
-            --radius-sm: 8px;
-            --radius-xs: 6px;
-            --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+            --bg: #f8f9fb; --surface: #fff; --surface-hover: #f3f4f6;
+            --border: #e5e7eb; --border-light: #f0f1f3;
+            --text: #111827; --text-secondary: #6b7280; --text-tertiary: #9ca3af;
+            --accent: #2563eb; --accent-hover: #1d4ed8; --accent-light: #eff6ff; --accent-border: #bfdbfe;
+            --success: #059669; --success-light: #ecfdf5; --success-border: #a7f3d0;
+            --warning: #d97706; --warning-light: #fffbeb; --warning-border: #fde68a;
+            --danger: #dc2626; --danger-light: #fef2f2; --danger-border: #fecaca;
+            --radius: 12px; --radius-sm: 8px; --radius-xs: 6px;
             --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.05);
-            --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+            --transition: 150ms cubic-bezier(0.4,0,0.2,1);
         }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Inter', 'Noto Sans JP', -apple-system, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            line-height: 1.5;
-            -webkit-font-smoothing: antialiased;
-        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Inter','Noto Sans JP',-apple-system,sans-serif; background:var(--bg); color:var(--text); line-height:1.5; -webkit-font-smoothing:antialiased; }
+        .app { max-width:960px; margin:0 auto; padding:32px 24px 64px; }
+        .header { margin-bottom:24px; }
+        .header h1 { font-size:28px; font-weight:700; letter-spacing:-0.02em; background:linear-gradient(135deg,#1e40af,#7c3aed); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+        .header p { color:var(--text-secondary); font-size:15px; margin-top:4px; }
 
-        /* Layout */
-        .app { max-width: 960px; margin: 0 auto; padding: 32px 24px 64px; }
+        /* Input bar */
+        .input-bar { display:flex; gap:8px; margin-bottom:20px; }
+        .input-wrap { flex:1; display:flex; align-items:center; border:1.5px solid var(--border); border-radius:var(--radius-sm); background:var(--surface); transition:border-color var(--transition),box-shadow var(--transition); }
+        .input-wrap:focus-within { border-color:var(--accent); box-shadow:0 0 0 3px rgba(37,99,235,0.1); }
+        .input-wrap input { flex:1; padding:12px 14px; border:none; outline:none; font-size:15px; font-family:inherit; background:transparent; color:var(--text); }
+        .input-wrap input::placeholder { color:var(--text-tertiary); }
+        .btn { padding:12px 24px; background:var(--accent); color:#fff; border:none; border-radius:var(--radius-sm); font-size:15px; font-weight:600; cursor:pointer; font-family:inherit; white-space:nowrap; transition:all var(--transition); }
+        .btn:hover { background:var(--accent-hover); }
 
-        /* Header */
-        .header { margin-bottom: 32px; }
-        .header h1 {
-            font-size: 28px; font-weight: 700; letter-spacing: -0.02em;
-            background: linear-gradient(135deg, #1e40af, #7c3aed);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        }
-        .header p { color: var(--text-secondary); font-size: 15px; margin-top: 4px; }
+        /* Source toggle (compact) */
+        .source-row { display:flex; gap:6px; margin-bottom:20px; }
+        .source-opt { padding:6px 14px; border:1.5px solid var(--border); border-radius:20px; font-size:13px; font-weight:500; cursor:pointer; color:var(--text-secondary); background:var(--surface); transition:all var(--transition); }
+        .source-opt.active { border-color:var(--accent); background:var(--accent-light); color:var(--accent); font-weight:600; }
 
-        /* Card */
-        .card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            margin-bottom: 20px;
-            overflow: hidden;
-        }
-        .card-body { padding: 24px; }
+        /* Job cards */
+        .job-list { display:flex; flex-direction:column; gap:12px; }
+        .job-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; transition:border-color var(--transition); }
+        .job-card:hover { border-color:var(--text-tertiary); }
+        .job-header { padding:16px 20px; cursor:pointer; }
+        .job-row1 { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+        .job-name { font-weight:600; font-size:15px; }
+        .job-source-tag { font-size:11px; color:var(--text-tertiary); margin-left:8px; font-weight:400; }
+        .job-badge { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+        .job-badge.running { background:var(--warning-light); color:var(--warning); border:1px solid var(--warning-border); }
+        .job-badge.done { background:var(--success-light); color:var(--success); border:1px solid var(--success-border); }
+        .job-badge.failed { background:var(--danger-light); color:var(--danger); border:1px solid var(--danger-border); }
+        .job-badge .dot { width:6px; height:6px; border-radius:50%; background:currentColor; }
+        .job-row2 { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+        .job-stat { font-size:13px; color:var(--text-secondary); display:flex; align-items:center; gap:3px; }
+        .job-progress { font-size:13px; color:var(--warning); display:flex; align-items:center; gap:6px; margin-top:4px; }
+        .job-error { font-size:12px; color:var(--danger); margin-top:4px; }
+        .job-url { font-size:11px; color:var(--text-tertiary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:4px; }
+        .job-meta { display:flex; gap:8px; align-items:center; margin-top:6px; font-size:12px; color:var(--text-tertiary); }
+        .btn-ghost { display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:var(--radius-xs); font-size:12px; font-weight:500; background:transparent; border:1px solid var(--border); color:var(--text-secondary); cursor:pointer; font-family:inherit; transition:all var(--transition); }
+        .btn-ghost:hover { background:var(--surface-hover); border-color:var(--text-tertiary); }
 
-        /* Form */
-        .field { margin-bottom: 20px; }
-        .field:last-child { margin-bottom: 0; }
-        .field label {
-            display: block; font-size: 13px; font-weight: 600;
-            color: var(--text-secondary); text-transform: uppercase;
-            letter-spacing: 0.05em; margin-bottom: 8px;
-        }
-        .input-wrap {
-            position: relative; display: flex; align-items: center;
-            border: 1.5px solid var(--border); border-radius: var(--radius-sm);
-            transition: border-color var(--transition), box-shadow var(--transition);
-            background: var(--surface);
-        }
-        .input-wrap:focus-within {
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
-        }
-        .input-icon {
-            padding: 0 0 0 14px; color: var(--text-tertiary); font-size: 18px;
-            display: flex; align-items: center; flex-shrink: 0;
-        }
-        .input-wrap input {
-            flex: 1; padding: 12px 14px; border: none; outline: none;
-            font-size: 15px; font-family: inherit; background: transparent;
-            color: var(--text);
-        }
-        .input-wrap input::placeholder { color: var(--text-tertiary); }
-        .input-clear {
-            padding: 0 12px; cursor: pointer; color: var(--text-tertiary);
-            font-size: 18px; display: none; transition: color var(--transition);
-        }
-        .input-clear:hover { color: var(--text-secondary); }
-        .input-wrap.has-value .input-clear { display: block; }
+        /* Expandable results */
+        .job-results { display:none; border-top:1px solid var(--border-light); }
+        .job-results.open { display:block; }
+        .results-bar { padding:12px 20px; display:flex; justify-content:space-between; align-items:center; background:var(--bg); }
+        .results-bar .chip { background:var(--accent-light); color:var(--accent); padding:3px 10px; border-radius:16px; font-size:12px; font-weight:600; border:1px solid var(--accent-border); }
+        .table-wrap { max-height:400px; overflow-y:auto; }
+        .table-wrap::-webkit-scrollbar { width:6px; }
+        .table-wrap::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+        table { width:100%; border-collapse:collapse; font-size:13px; }
+        thead { position:sticky; top:0; z-index:1; }
+        th { background:var(--bg); padding:8px 16px; text-align:left; font-weight:600; font-size:11px; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.04em; border-bottom:1px solid var(--border); }
+        td { padding:10px 16px; border-bottom:1px solid var(--border-light); vertical-align:top; }
+        td.comment { max-width:320px; white-space:pre-wrap; word-break:break-word; line-height:1.6; }
+        tr:hover td { background:var(--surface-hover); }
+        .rating-stars { color:#f59e0b; letter-spacing:1px; }
 
-        /* Source toggle */
-        .source-toggle {
-            display: flex; gap: 8px;
-        }
-        .source-option {
-            flex: 1; display: flex; align-items: center; justify-content: center;
-            gap: 8px; padding: 12px 16px;
-            border: 1.5px solid var(--border); border-radius: var(--radius-sm);
-            background: var(--surface); cursor: pointer;
-            font-size: 14px; font-weight: 500; color: var(--text-secondary);
-            transition: all var(--transition);
-        }
-        .source-option:hover { border-color: var(--text-tertiary); background: var(--surface-hover); }
-        .source-option.active {
-            border-color: var(--accent); background: var(--accent-light);
-            color: var(--accent); font-weight: 600;
-        }
-        .source-option .source-icon { font-size: 20px; }
-
-        /* Button */
-        .btn {
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-            width: 100%; padding: 14px 24px;
-            background: var(--accent); color: #fff;
-            border: none; border-radius: var(--radius-sm);
-            font-size: 15px; font-weight: 600; font-family: inherit;
-            cursor: pointer; transition: all var(--transition);
-            position: relative; overflow: hidden;
-        }
-        .btn:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: var(--shadow-md); }
-        .btn:active { transform: translateY(0); }
-        .btn:disabled {
-            background: var(--text-tertiary); cursor: not-allowed;
-            transform: none; box-shadow: none;
-        }
-        .btn-icon { font-size: 18px; }
-
-        /* Status banner */
-        .banner {
-            display: none; align-items: center; gap: 10px;
-            padding: 14px 18px; border-radius: var(--radius-sm);
-            font-size: 14px; font-weight: 500; margin-bottom: 20px;
-        }
-        .banner.show { display: flex; }
-        .banner-icon { font-size: 20px; flex-shrink: 0; }
-        .banner-text { flex: 1; }
-        .banner.loading { background: var(--warning-light); border: 1px solid var(--warning-border); color: var(--warning); }
-        .banner.success { background: var(--success-light); border: 1px solid var(--success-border); color: var(--success); }
-        .banner.error { background: var(--danger-light); border: 1px solid var(--danger-border); color: var(--danger); }
-
-        /* Spinner */
-        .spin { display: inline-block; width: 18px; height: 18px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* Results */
-        .results-bar {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 16px 24px; border-bottom: 1px solid var(--border-light);
-        }
-        .results-bar h2 { font-size: 15px; font-weight: 600; }
-        .results-actions { display: flex; gap: 6px; }
-        .chip {
-            display: inline-flex; align-items: center; gap: 4px;
-            padding: 4px 12px; border-radius: 20px;
-            font-size: 12px; font-weight: 600;
-            background: var(--accent-light); color: var(--accent);
-            border: 1px solid var(--accent-border);
-        }
-        .btn-ghost {
-            display: inline-flex; align-items: center; gap: 4px;
-            padding: 6px 12px; border-radius: var(--radius-xs);
-            font-size: 13px; font-weight: 500;
-            background: transparent; border: 1px solid var(--border);
-            color: var(--text-secondary); cursor: pointer;
-            transition: all var(--transition); font-family: inherit;
-        }
-        .btn-ghost:hover { background: var(--surface-hover); border-color: var(--text-tertiary); color: var(--text); }
-
-        /* Table */
-        .table-wrap { max-height: 480px; overflow-y: auto; }
-        .table-wrap::-webkit-scrollbar { width: 6px; }
-        .table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        thead { position: sticky; top: 0; z-index: 1; }
-        th {
-            background: var(--bg); padding: 10px 16px; text-align: left;
-            font-weight: 600; font-size: 12px; color: var(--text-secondary);
-            text-transform: uppercase; letter-spacing: 0.04em;
-            border-bottom: 1px solid var(--border);
-        }
-        td {
-            padding: 12px 16px; border-bottom: 1px solid var(--border-light);
-            vertical-align: top; color: var(--text);
-        }
-        td.comment { max-width: 340px; white-space: pre-wrap; word-break: break-word; line-height: 1.6; }
-        tr:hover td { background: var(--surface-hover); }
-        td .rating-stars { color: #f59e0b; letter-spacing: 1px; }
-
-        /* History */
-        .section-title {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 18px 24px; border-bottom: 1px solid var(--border-light);
-        }
-        .section-title h3 { font-size: 15px; font-weight: 600; }
-        .link-subtle {
-            font-size: 12px; color: var(--text-tertiary); cursor: pointer;
-            text-decoration: none; transition: color var(--transition);
-        }
-        .link-subtle:hover { color: var(--danger); }
-        .history-list { list-style: none; }
-        .history-item {
-            padding: 16px 24px;
-            border-bottom: 1px solid var(--border-light);
-            transition: background var(--transition);
-        }
-        .history-item:last-child { border-bottom: none; }
-        .history-item:hover { background: var(--surface-hover); }
-        .hi-row1 { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-        .hi-name { font-weight: 600; font-size: 14px; }
-        .hi-source { font-size: 12px; color: var(--text-tertiary); margin-left: 8px; font-weight: 400; }
-        .hi-badge {
-            display: inline-flex; align-items: center; gap: 5px;
-            padding: 3px 10px; border-radius: 20px;
-            font-size: 11px; font-weight: 600; text-transform: uppercase;
-            letter-spacing: 0.03em;
-        }
-        .hi-badge.running { background: var(--warning-light); color: var(--warning); border: 1px solid var(--warning-border); }
-        .hi-badge.done { background: var(--success-light); color: var(--success); border: 1px solid var(--success-border); }
-        .hi-badge.failed { background: var(--danger-light); color: var(--danger); border: 1px solid var(--danger-border); }
-        .hi-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-        .hi-row2 { display: flex; gap: 16px; align-items: center; margin-bottom: 4px; }
-        .hi-stat { font-size: 13px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px; }
-        .hi-stat-icon { font-size: 14px; }
-        .hi-progress { font-size: 13px; color: var(--warning); display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-        .hi-error { font-size: 12px; color: var(--danger); margin-bottom: 4px; }
-        .hi-url {
-            font-size: 12px; color: var(--text-tertiary);
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-            max-width: 100%; margin-bottom: 6px;
-        }
-        .hi-actions { display: flex; gap: 6px; align-items: center; }
-        .hi-actions .btn-ghost { padding: 4px 10px; font-size: 12px; }
-
-        .empty-state {
-            padding: 40px 24px; text-align: center;
-            color: var(--text-tertiary); font-size: 14px;
-        }
-        .empty-state .empty-icon { font-size: 32px; margin-bottom: 8px; }
+        .section-title { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+        .section-title h3 { font-size:15px; font-weight:600; }
+        .link-subtle { font-size:12px; color:var(--text-tertiary); cursor:pointer; transition:color var(--transition); }
+        .link-subtle:hover { color:var(--danger); }
+        .empty-state { padding:40px 24px; text-align:center; color:var(--text-tertiary); font-size:14px; }
+        .empty-state .empty-icon { font-size:32px; margin-bottom:8px; }
+        .spin { display:inline-block; width:14px; height:14px; border:2px solid currentColor; border-top-color:transparent; border-radius:50%; animation:sp .7s linear infinite; }
+        @keyframes sp { to { transform:rotate(360deg); } }
     </style>
 </head>
 <body>
-    <div class="app">
-        <div class="header">
-            <h1>Review Scraper</h1>
-            <p>Google Maps・TripAdvisor の口コミをワンクリックで取得</p>
-        </div>
-
-        <div class="card">
-            <div class="card-body">
-                <div class="field">
-                    <label>URL</label>
-                    <div class="input-wrap" id="inputWrap">
-                        <span class="input-icon">🔗</span>
-                        <input type="text" id="url" placeholder="店舗ページのURLを貼り付け..." autocomplete="off">
-                        <span class="input-clear" onclick="clearInput()">✕</span>
-                    </div>
-                </div>
-                <div class="field">
-                    <label>ソース</label>
-                    <div class="source-toggle">
-                        <div class="source-option active" data-source="gmap" onclick="selectSource(this)">
-                            <span class="source-icon">📍</span> Google Maps
-                        </div>
-                        <div class="source-option" data-source="tripadvisor" onclick="selectSource(this)">
-                            <span class="source-icon">🦉</span> TripAdvisor
-                        </div>
-                    </div>
-                </div>
-                <div class="field">
-                    <button class="btn" id="scrapeBtn" onclick="startScrape()">
-                        <span class="btn-icon">🚀</span> 口コミを取得
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <div class="banner" id="banner">
-            <span class="banner-icon" id="bannerIcon"></span>
-            <span class="banner-text" id="bannerText"></span>
-        </div>
-
-        <div class="card" id="results" style="display:none">
-            <div class="results-bar">
-                <h2>取得結果</h2>
-                <div class="results-actions">
-                    <span class="chip" id="count"></span>
-                    <button class="btn-ghost" onclick="downloadCsv()">📥 CSV</button>
-                    <button class="btn-ghost" onclick="downloadJson()">📋 JSON</button>
-                </div>
-            </div>
-            <div class="table-wrap">
-                <table>
-                    <thead><tr><th>投稿者</th><th>評価</th><th>日付</th><th>コメント</th></tr></thead>
-                    <tbody id="tbody"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="card" id="historyCard">
-            <div class="section-title">
-                <h3>📋 履歴</h3>
-                <span class="link-subtle" onclick="clearHistory()">すべて削除</span>
-            </div>
-            <ul class="history-list" id="historyList"></ul>
-        </div>
+<div class="app">
+    <div class="header">
+        <h1>Review Scraper</h1>
+        <p>Google Maps・TripAdvisor の口コミをワンクリックで取得</p>
     </div>
+    <div class="source-row">
+        <div class="source-opt active" data-source="gmap" onclick="selectSource(this)">📍 Google Maps</div>
+        <div class="source-opt" data-source="tripadvisor" onclick="selectSource(this)">🦉 TripAdvisor</div>
+    </div>
+    <div class="input-bar">
+        <div class="input-wrap">
+            <input type="text" id="url" placeholder="店舗ページのURLを貼り付け..." autocomplete="off">
+        </div>
+        <button class="btn" id="scrapeBtn" onclick="startScrape()">取得</button>
+    </div>
+    <div class="section-title" id="historyTitle" style="display:none">
+        <h3>履歴</h3>
+        <span class="link-subtle" onclick="clearHistory()">すべて削除</span>
+    </div>
+    <div class="job-list" id="jobList"></div>
+</div>
+<script>
+let currentSource = 'gmap';
+let pollTimers = {};
+let jobReviews = {}; // jobId -> reviews array (in-memory for current session)
 
-    <script>
-    let currentSource = 'gmap';
-    let currentJobId = null;
-    let pollTimers = {};  // jobId -> intervalId
-    let currentReviews = [];
+function selectSource(el) {
+    document.querySelectorAll('.source-opt').forEach(b=>b.classList.remove('active'));
+    el.classList.add('active');
+    currentSource = el.dataset.source;
+}
+document.getElementById('url').addEventListener('input', function() {
+    if (this.value.includes('tripadvisor')) selectSource(document.querySelector('[data-source="tripadvisor"]'));
+    else if (this.value.includes('google') || this.value.includes('goo.gl') || this.value.includes('share.google')) selectSource(document.querySelector('[data-source="gmap"]'));
+});
 
-    // Input
-    const urlInput = document.getElementById('url');
-    const inputWrap = document.getElementById('inputWrap');
-    urlInput.addEventListener('input', function() {
-        inputWrap.classList.toggle('has-value', this.value.length > 0);
-        if (this.value.includes('tripadvisor')) selectSource(document.querySelector('[data-source="tripadvisor"]'));
-        else if (this.value.includes('google.com/maps') || this.value.includes('goo.gl')) selectSource(document.querySelector('[data-source="gmap"]'));
-    });
-    function clearInput() { urlInput.value = ''; inputWrap.classList.remove('has-value'); urlInput.focus(); }
+function extractName(url) {
+    if (!url) return '不明';
+    try {
+        const gm = url.match(/\/maps\/place\/([^/@]+)/);
+        if (gm) return decodeURIComponent(gm[1].replace(/\+/g,' '));
+        const ta = url.match(/Reviews-([^-]+(?:-[^-]+)*?)-[A-Za-z]/);
+        if (ta) return decodeURIComponent(ta[1].replace(/_/g,' '));
+    } catch {}
+    return url.substring(0,40)+'…';
+}
+function formatDuration(ms) {
+    if (!ms||ms<0) return '';
+    const sec=Math.floor(ms/1000);
+    if (sec<60) return sec+'秒';
+    return Math.floor(sec/60)+'分'+(sec%60>0?sec%60+'秒':'');
+}
+function statusLabel(s) { return {running:'実行中',done:'完了',failed:'失敗'}[s]||s; }
+function starsHtml(r) { const n=parseInt(r)||0; return '<span class="rating-stars">'+'★'.repeat(n)+'<span style="opacity:0.2">'+'★'.repeat(5-n)+'</span></span>'; }
+function esc(s) { return s?s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):''; }
 
-    function selectSource(el) {
-        document.querySelectorAll('.source-option').forEach(b => b.classList.remove('active'));
-        el.classList.add('active');
-        currentSource = el.dataset.source;
-    }
+// Start scrape
+async function startScrape() {
+    const url = document.getElementById('url').value.trim();
+    if (!url) return;
+    try {
+        const res = await fetch('/scrape', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({url, source:currentSource})});
+        const data = await res.json();
+        if (data.error) { alert(data.error); return; }
+        saveToHistory(data.job_id, url, currentSource);
+        startPolling(data.job_id);
+        document.getElementById('url').value = '';
+    } catch(e) { alert('エラー: '+e.message); }
+}
 
-    // Banner
-    function setBanner(type, icon, msg) {
-        const b = document.getElementById('banner');
-        b.className = 'banner show ' + type;
-        document.getElementById('bannerIcon').innerHTML = icon;
-        document.getElementById('bannerText').innerHTML = msg;
-    }
-    function hideBanner() { document.getElementById('banner').className = 'banner'; }
-
-    // Helpers
-    function extractName(url) {
-        if (!url) return '不明';
-        try {
-            const gm = url.match(/\/maps\/place\/([^/@]+)/);
-            if (gm) return decodeURIComponent(gm[1].replace(/\+/g, ' '));
-            const ta = url.match(/Reviews-([^-]+(?:-[^-]+)*?)-[A-Za-z]/);
-            if (ta) return decodeURIComponent(ta[1].replace(/_/g, ' '));
-        } catch {}
-        return url.substring(0, 40) + '…';
-    }
-    function formatDuration(ms) {
-        if (!ms || ms < 0) return '';
-        const sec = Math.floor(ms / 1000);
-        if (sec < 60) return sec + '秒';
-        return Math.floor(sec/60) + '分' + (sec%60 > 0 ? sec%60 + '秒' : '');
-    }
-    function statusLabel(s) { return {running:'実行中',done:'完了',failed:'失敗'}[s]||s; }
-    function starsHtml(rating) {
-        const n = parseInt(rating) || 0;
-        return '<span class="rating-stars">' + '★'.repeat(n) + '<span style="opacity:0.25">' + '★'.repeat(5-n) + '</span></span>';
-    }
-
-    // Scrape
-    async function startScrape() {
-        const url = urlInput.value.trim();
-        if (!url) { setBanner('error','⚠️','URLを入力してください'); return; }
-        const btn = document.getElementById('scrapeBtn');
-        btn.innerHTML = '<span class="spin"></span> 送信中...';
-        setBanner('loading','<span class="spin"></span>','ジョブを開始しています...');
-        document.getElementById('results').style.display = 'none';
-        try {
-            const res = await fetch('/scrape', {
-                method: 'POST', headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({url, source: currentSource})
-            });
-            const data = await res.json();
-            if (data.error) { setBanner('error','⚠️',data.error); resetBtn(); return; }
-            currentJobId = data.job_id;
-            saveToHistory(data.job_id, url, currentSource);
-            startPolling(data.job_id);
-            resetBtn();
-            urlInput.value = ''; inputWrap.classList.remove('has-value');
-        } catch(e) { setBanner('error','⚠️','エラー: '+e.message); resetBtn(); }
-    }
-    function resetBtn() {
-        const btn = document.getElementById('scrapeBtn');
-        btn.disabled = false; btn.innerHTML = '<span class="btn-icon">🚀</span> 口コミを取得';
-    }
-
-    // Polling
-    function startPolling(jobId) {
-        if(pollTimers[jobId]) clearInterval(pollTimers[jobId]);
-        pollTimers[jobId] = setInterval(()=>pollJob(jobId), 2000);
-    }
-    async function pollJob(jobId) {
-        try {
-            const res = await fetch('/jobs/'+jobId);
-            const data = await res.json();
-            if (data.status === 'running') {
-                const el = getElapsed(jobId);
-                setBanner('loading','<span class="spin"></span>', data.message + '（' + data.review_count + '件）' + (el ? ' — ' + formatDuration(el) : ''));
-                updateHistory(jobId, {status:'running', count:data.review_count, message:data.message});
-            } else if (data.status === 'done') {
-                clearInterval(pollTimers[jobId]); delete pollTimers[jobId];
-                currentReviews = data.reviews || [];
-                showResults(currentReviews);
-                const el = getElapsed(jobId);
-                setBanner('success','✅', currentReviews.length + '件の口コミを取得しました' + (el ? '（'+formatDuration(el)+'）' : ''));
-                saveReviewsLocal(jobId, currentReviews);
-                updateHistory(jobId, {status:'done', count:currentReviews.length, duration:el, finishedAt:new Date().toISOString()});
-                resetBtn();
-            } else if (data.status === 'failed') {
-                clearInterval(pollTimers[jobId]); delete pollTimers[jobId];
-                setBanner('error','❌', data.error || data.message || '失敗');
-                updateHistory(jobId, {status:'failed', count:0, error:data.error||data.message, finishedAt:new Date().toISOString()});
-                resetBtn();
-            }
-        } catch(e) {}
-    }
-    function getElapsed(jobId) {
-        const h = getHistory();
-        const item = h.find(x=>x.jobId===jobId);
-        return item ? Date.now() - new Date(item.time).getTime() : 0;
-    }
-
-    // Results
-    function showResults(reviews) {
-        document.getElementById('count').textContent = reviews.length + '件';
-        document.getElementById('tbody').innerHTML = reviews.map(r =>
-            '<tr><td><strong>'+esc(r.author)+'</strong></td><td>'+starsHtml(r.rating)+'</td><td style="white-space:nowrap;color:var(--text-secondary)">'+esc(r.date)+'</td><td class="comment">'+esc(r.comment)+'</td></tr>'
-        ).join('');
-        document.getElementById('results').style.display = 'block';
-    }
-
-    // Downloads
-    function downloadCsv() {
-        if (!currentReviews.length) return;
-        const rows = currentReviews.map(r=>[r.review_id,r.author,r.rating,r.date,r.comment].map(v=>'"'+(v||'').replace(/"/g,'""')+'"').join(','));
-        dl(new Blob(['\uFEFF'+'review_id,投稿者,Rating,投稿日,コメント\n'+rows.join('\n')],{type:'text/csv'}), 'reviews.csv');
-    }
-    function downloadJson() {
-        if (!currentReviews.length) return;
-        dl(new Blob([JSON.stringify(currentReviews,null,2)],{type:'application/json'}), 'reviews.json');
-    }
-    function dl(blob,name) { const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); }
-
-    // Reviews cache
-    function saveReviewsLocal(jid,rev) { try{localStorage.setItem('reviews_'+jid,JSON.stringify(rev))}catch{} }
-    function loadReviewsLocal(jid) { try{return JSON.parse(localStorage.getItem('reviews_'+jid)||'null')}catch{return null} }
-    function removeReviewsLocal(jid) { try{localStorage.removeItem('reviews_'+jid)}catch{} }
-
-    // History
-    function getHistory() { try{return JSON.parse(localStorage.getItem('scraper_history')||'[]')}catch{return []} }
-    function setHistoryData(h) { localStorage.setItem('scraper_history',JSON.stringify(h.slice(0,50))); renderHistory(); }
-    function saveToHistory(jid,url,source) {
-        const h=getHistory();
-        h.unshift({jobId:jid,url,source,name:extractName(url),status:'running',count:0,message:'開始中...',time:new Date().toISOString(),duration:null,error:null});
-        setHistoryData(h);
-    }
-    function updateHistory(jid,u) { const h=getHistory(); const i=h.find(x=>x.jobId===jid); if(i)Object.assign(i,u); setHistoryData(h); }
-    function removeHistory(jid) {
-        removeReviewsLocal(jid);
-        setHistoryData(getHistory().filter(x=>x.jobId!==jid));
-        fetch('/jobs/'+jid, {method:'DELETE'}).catch(()=>{});
-    }
-    function clearHistory() { if(confirm('履歴をすべて削除しますか？')){
-            getHistory().forEach(x=>{removeReviewsLocal(x.jobId);fetch('/jobs/'+x.jobId,{method:'DELETE'}).catch(()=>{});});
-            setHistoryData([]);
-        } }
-
-    function renderHistory() {
-        const h = getHistory();
-        const list = document.getElementById('historyList');
-        if (!h.length) {
-            list.innerHTML = '<li class="empty-state"><div class="empty-icon">📭</div>まだ取得履歴がありません</li>';
-            return;
+// Polling
+function startPolling(jid) {
+    if(pollTimers[jid]) clearInterval(pollTimers[jid]);
+    pollTimers[jid] = setInterval(()=>pollJob(jid), 2000);
+}
+async function pollJob(jid) {
+    try {
+        const res = await fetch('/jobs/'+jid);
+        const data = await res.json();
+        if (data.status==='running') {
+            updateHistory(jid, {status:'running', count:data.review_count||0, message:data.message||''});
+        } else if (data.status==='done') {
+            clearInterval(pollTimers[jid]); delete pollTimers[jid];
+            const el = getElapsed(jid);
+            if (data.reviews) { jobReviews[jid]=data.reviews; saveReviewsLocal(jid,data.reviews); }
+            updateHistory(jid, {status:'done', count:data.review_count||data.reviews?.length||0, duration:el, finishedAt:new Date().toISOString()});
+        } else if (data.status==='failed') {
+            clearInterval(pollTimers[jid]); delete pollTimers[jid];
+            updateHistory(jid, {status:'failed', error:data.error||data.message, finishedAt:new Date().toISOString()});
         }
-        list.innerHTML = h.map(item => {
-            const d = new Date(item.time);
-            const ds = d.toLocaleDateString('ja-JP') + ' ' + d.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
-            const si = item.source==='gmap'?'📍':'🦉';
-            const sl = item.source==='gmap'?'Google Maps':'TripAdvisor';
-            const st = item.status||'done';
-            const dur = item.duration ? formatDuration(item.duration) : '';
+    } catch(e) {}
+}
+function getElapsed(jid) { const h=getHistory(); const i=h.find(x=>x.jobId===jid); return i?Date.now()-new Date(i.time).getTime():0; }
 
-            let stats = '';
-            if (item.count > 0) stats += `<span class="hi-stat"><span class="hi-stat-icon">📝</span>${item.count}件</span>`;
-            if (dur) stats += `<span class="hi-stat"><span class="hi-stat-icon">⏱</span>${dur}</span>`;
+// Reviews cache
+function saveReviewsLocal(jid,rev) { try{localStorage.setItem('reviews_'+jid,JSON.stringify(rev))}catch{} }
+function loadReviewsLocal(jid) { try{return JSON.parse(localStorage.getItem('reviews_'+jid)||'null')}catch{return null} }
+function removeReviewsLocal(jid) { try{localStorage.removeItem('reviews_'+jid)}catch{} }
 
-            let progress = '';
-            if (st==='running' && item.message) progress = `<div class="hi-progress"><span class="spin" style="width:14px;height:14px;border-width:1.5px"></span>${esc(item.message)}</div>`;
+// History
+function getHistory() { try{return JSON.parse(localStorage.getItem('scraper_history')||'[]')}catch{return []} }
+function setHistoryData(h) { localStorage.setItem('scraper_history',JSON.stringify(h.slice(0,50))); render(); }
+function saveToHistory(jid,url,source) {
+    const h=getHistory();
+    h.unshift({jobId:jid,url,source,name:extractName(url),status:'running',count:0,message:'開始中...',time:new Date().toISOString(),duration:null,error:null});
+    setHistoryData(h);
+}
+function updateHistory(jid,u) { const h=getHistory(); const i=h.find(x=>x.jobId===jid); if(i)Object.assign(i,u); setHistoryData(h); }
+function removeHistory(jid) { removeReviewsLocal(jid); setHistoryData(getHistory().filter(x=>x.jobId!==jid)); fetch('/jobs/'+jid,{method:'DELETE'}).catch(()=>{}); }
+function clearHistory() { if(confirm('履歴をすべて削除しますか？')){getHistory().forEach(x=>{removeReviewsLocal(x.jobId);fetch('/jobs/'+x.jobId,{method:'DELETE'}).catch(()=>{});}); setHistoryData([]); } }
 
-            let error = '';
-            if (st==='failed' && item.error) error = `<div class="hi-error">⚠️ ${esc(item.error)}</div>`;
+// Toggle results
+async function toggleResults(jid) {
+    const el = document.getElementById('results-'+jid);
+    if (!el) return;
+    if (el.classList.contains('open')) { el.classList.remove('open'); return; }
+    // Load reviews if not cached
+    if (!jobReviews[jid]) {
+        const local = loadReviewsLocal(jid);
+        if (local) { jobReviews[jid]=local; }
+        else {
+            try {
+                const res = await fetch('/jobs/'+jid);
+                const data = await res.json();
+                if (data.reviews) { jobReviews[jid]=data.reviews; saveReviewsLocal(jid,data.reviews); }
+            } catch(e) {}
+        }
+    }
+    const reviews = jobReviews[jid] || [];
+    const tbody = el.querySelector('tbody');
+    tbody.innerHTML = reviews.map(r=>'<tr><td><strong>'+esc(r.author)+'</strong></td><td>'+starsHtml(r.rating)+'</td><td style="white-space:nowrap;color:var(--text-secondary)">'+esc(r.date)+'</td><td class="comment">'+esc(r.comment)+'</td></tr>').join('');
+    el.classList.add('open');
+}
+function downloadCsv(jid) {
+    const reviews = jobReviews[jid] || loadReviewsLocal(jid) || [];
+    if (!reviews.length) return;
+    const rows = reviews.map(r=>[r.review_id,r.author,r.rating,r.date,r.comment].map(v=>'"'+(v||'').replace(/"/g,'""')+'"').join(','));
+    dl(new Blob(['\uFEFF'+'review_id,投稿者,Rating,投稿日,コメント\n'+rows.join('\n')],{type:'text/csv'}), 'reviews.csv');
+}
+function downloadJson(jid) {
+    const reviews = jobReviews[jid] || loadReviewsLocal(jid) || [];
+    if (!reviews.length) return;
+    dl(new Blob([JSON.stringify(reviews,null,2)],{type:'application/json'}), 'reviews.json');
+}
+function dl(blob,name) { const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); }
 
-            return `<li class="history-item">
-                <div class="hi-row1">
-                    <div><span class="hi-name">${si} ${esc(item.name||extractName(item.url))}</span><span class="hi-source">${sl}</span></div>
-                    <span class="hi-badge ${st}"><span class="dot"></span>${statusLabel(st)}</span>
+// Render
+function render() {
+    const h = getHistory();
+    const list = document.getElementById('jobList');
+    const title = document.getElementById('historyTitle');
+    title.style.display = h.length ? 'flex' : 'none';
+    if (!h.length) { list.innerHTML='<div class="empty-state"><div class="empty-icon">📭</div>URLを入力して口コミを取得しましょう</div>'; return; }
+    list.innerHTML = h.map(item => {
+        const d=new Date(item.time);
+        const ds=d.toLocaleDateString('ja-JP')+' '+d.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+        const si=item.source==='gmap'?'📍':'🦉';
+        const sl=item.source==='gmap'?'Google Maps':'TripAdvisor';
+        const st=item.status||'done';
+        const dur=item.duration?formatDuration(item.duration):'';
+        const elapsed=st==='running'?formatDuration(Date.now()-new Date(item.time).getTime()):'';
+
+        let stats='';
+        if (item.count>0) stats+=`<span class="job-stat">📝 ${item.count}件</span>`;
+        if (dur) stats+=`<span class="job-stat">⏱ ${dur}</span>`;
+        if (st==='running'&&elapsed) stats+=`<span class="job-stat">⏱ ${elapsed}経過</span>`;
+
+        let progress='';
+        if (st==='running'&&item.message) progress=`<div class="job-progress"><span class="spin"></span>${esc(item.message)}</div>`;
+        let error='';
+        if (st==='failed'&&item.error) error=`<div class="job-error">⚠️ ${esc(item.error)}</div>`;
+
+        let actions=`<span style="color:var(--text-tertiary)">${ds}</span>`;
+        if (st==='done') actions+=` <button class="btn-ghost" onclick="event.stopPropagation();toggleResults('${item.jobId}')">📄 結果</button> <button class="btn-ghost" onclick="event.stopPropagation();downloadCsv('${item.jobId}')">📥 CSV</button> <button class="btn-ghost" onclick="event.stopPropagation();downloadJson('${item.jobId}')">📋 JSON</button>`;
+        actions+=` <button class="btn-ghost" onclick="event.stopPropagation();removeHistory('${item.jobId}')" style="color:var(--text-tertiary)">🗑</button>`;
+
+        return `<div class="job-card">
+            <div class="job-header" onclick="toggleResults('${item.jobId}')">
+                <div class="job-row1">
+                    <div><span class="job-name">${si} ${esc(item.name||extractName(item.url))}</span><span class="job-source-tag">${sl}</span></div>
+                    <span class="job-badge ${st}"><span class="dot"></span>${statusLabel(st)}</span>
                 </div>
-                <div class="hi-row2">${stats}</div>
+                <div class="job-row2">${stats}</div>
                 ${progress}${error}
-                <div class="hi-url" title="${esc(item.url)}">${esc(item.url)}</div>
-                <div class="hi-actions">
-                    <span style="font-size:12px;color:var(--text-tertiary)">${ds}</span>
-                    ${st==='done'?`<button class="btn-ghost" onclick="loadJob('${item.jobId}')">📄 結果</button>`:''}
-                    <button class="btn-ghost" onclick="removeHistory('${item.jobId}')" style="color:var(--text-tertiary)">🗑</button>
+                <div class="job-url" title="${esc(item.url)}">${esc(item.url)}</div>
+                <div class="job-meta">${actions}</div>
+            </div>
+            <div class="job-results" id="results-${item.jobId}">
+                <div class="results-bar">
+                    <span class="chip">${item.count||0}件</span>
+                    <div style="display:flex;gap:6px">
+                        <button class="btn-ghost" onclick="downloadCsv('${item.jobId}')">📥 CSV</button>
+                        <button class="btn-ghost" onclick="downloadJson('${item.jobId}')">📋 JSON</button>
+                    </div>
                 </div>
-            </li>`;
-        }).join('');
-    }
+                <div class="table-wrap">
+                    <table><thead><tr><th>投稿者</th><th>評価</th><th>日付</th><th>コメント</th></tr></thead><tbody></tbody></table>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
 
-    async function loadJob(jid) {
-        try {
-            const res = await fetch('/jobs/'+jid);
-            const data = await res.json();
-            if (data.error === 'Job not found') {
-                const local = loadReviewsLocal(jid);
-                if (local && local.length) { currentReviews=local; showResults(local); setBanner('success','✅',local.length+'件（ローカルキャッシュ）'); }
-                else setBanner('error','⚠️','データが見つかりません');
-                return;
+// Sync from server on load
+async function syncFromServer() {
+    try {
+        const res = await fetch('/jobs');
+        const serverJobs = await res.json();
+        const local = getHistory();
+        const localMap = Object.fromEntries(local.map(x=>[x.jobId,x]));
+        for (const sj of serverJobs) {
+            const jid=sj.job_id;
+            if (localMap[jid]) {
+                localMap[jid].status=sj.status||localMap[jid].status;
+                localMap[jid].count=sj.review_count||sj.count||localMap[jid].count;
+                if(sj.message) localMap[jid].message=sj.message;
+                if(sj.error) localMap[jid].error=sj.error;
+            } else {
+                local.push({jobId:jid,url:sj.url||'',source:sj.source||'gmap',name:extractName(sj.url||''),status:sj.status||'done',count:sj.review_count||0,message:sj.message||'',time:sj.created_at||new Date().toISOString(),duration:null,error:sj.error||null});
             }
-            if (data.status==='done' && data.reviews) {
-                currentReviews=data.reviews; showResults(currentReviews);
-                setBanner('success','✅',currentReviews.length+'件');
-            } else if (data.status==='running') {
-                currentJobId=jid; startPolling(jid);
-                setBanner('loading','<span class="spin"></span>',data.message);
-            }
-        } catch(e) { setBanner('error','⚠️','接続エラー'); }
-    }
+        }
+        local.sort((a,b)=>new Date(b.time)-new Date(a.time));
+        setHistoryData(local);
+        // Auto-poll running jobs
+        for (const item of local) {
+            if (item.status==='running') startPolling(item.jobId);
+        }
+    } catch(e) { render(); }
+}
 
-    function esc(s) { return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : ''; }
-
-    // Sync history from server (Firestore) on page load
-    async function syncFromServer() {
-        try {
-            const res = await fetch('/jobs');
-            const serverJobs = await res.json();
-            const local = getHistory();
-            const localMap = Object.fromEntries(local.map(x => [x.jobId, x]));
-            for (const sj of serverJobs) {
-                const jid = sj.job_id;
-                if (localMap[jid]) {
-                    localMap[jid].status = sj.status || localMap[jid].status;
-                    localMap[jid].count = sj.review_count || sj.count || localMap[jid].count;
-                    if (sj.message) localMap[jid].message = sj.message;
-                    if (sj.error) localMap[jid].error = sj.error;
-                } else {
-                    local.push({
-                        jobId: jid, url: sj.url||'', source: sj.source||'gmap',
-                        name: extractName(sj.url||''), status: sj.status||'done',
-                        count: sj.review_count||0, message: sj.message||'',
-                        time: sj.created_at||new Date().toISOString(),
-                        duration: null, error: sj.error||null,
-                    });
-                }
-            }
-            local.sort((a,b) => new Date(b.time) - new Date(a.time));
-            setHistoryData(local);
-            // Auto-resume polling for running jobs
-            for (const item of local) {
-                if (item.status === 'running') {
-                    currentJobId = item.jobId;
-                    startPolling(item.jobId);
-                    setBanner('loading','<span class="spin"></span>', item.message||'実行中...');
-                    // Keep button enabled for additional jobs
-                    break;
-                }
-            }
-        } catch(e) { renderHistory(); }
-    }
-    syncFromServer();
-    </script>
+syncFromServer();
+// Update elapsed times for running jobs
+setInterval(()=>{
+    const h=getHistory();
+    if(h.some(x=>x.status==='running')) render();
+}, 5000);
+</script>
 </body>
 </html>
