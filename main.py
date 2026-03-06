@@ -145,9 +145,19 @@ async def _run_scrape(job_id: str, url: str, source: Source):
             db.append_log(job_id, message)
 
         if source in (Source.google, Source.gmap):
-            reviews = await asyncio.to_thread(scrape_gmap_reviews, url, progress_callback)
+            coro = asyncio.to_thread(scrape_gmap_reviews, url, progress_callback)
         else:
-            reviews = await asyncio.to_thread(scrape_tripadvisor_reviews, url, progress_callback)
+            coro = asyncio.to_thread(scrape_tripadvisor_reviews, url, progress_callback)
+
+        # 10 minute overall timeout
+        try:
+            reviews = await asyncio.wait_for(coro, timeout=600)
+        except asyncio.TimeoutError:
+            duration = int(_time.time() - _start)
+            db.update_job(job_id, status="failed", error="10分タイムアウト", duration=duration,
+                          message="10分タイムアウトで終了")
+            db.append_log(job_id, "10分タイムアウトで強制終了")
+            return
 
         # Save reviews to Firestore subcollection
         db.save_reviews(job_id, reviews)
