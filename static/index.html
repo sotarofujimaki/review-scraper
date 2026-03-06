@@ -535,7 +535,46 @@
 
     function esc(s) { return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : ''; }
 
-    renderHistory();
+    // Sync history from server (Firestore) on page load
+    async function syncFromServer() {
+        try {
+            const res = await fetch('/jobs');
+            const serverJobs = await res.json();
+            const local = getHistory();
+            const localMap = Object.fromEntries(local.map(x => [x.jobId, x]));
+            for (const sj of serverJobs) {
+                const jid = sj.job_id;
+                if (localMap[jid]) {
+                    localMap[jid].status = sj.status || localMap[jid].status;
+                    localMap[jid].count = sj.review_count || sj.count || localMap[jid].count;
+                    if (sj.message) localMap[jid].message = sj.message;
+                    if (sj.error) localMap[jid].error = sj.error;
+                } else {
+                    local.push({
+                        jobId: jid, url: sj.url||'', source: sj.source||'gmap',
+                        name: extractName(sj.url||''), status: sj.status||'done',
+                        count: sj.review_count||0, message: sj.message||'',
+                        time: sj.created_at||new Date().toISOString(),
+                        duration: null, error: sj.error||null,
+                    });
+                }
+            }
+            local.sort((a,b) => new Date(b.time) - new Date(a.time));
+            setHistoryData(local);
+            // Auto-resume polling for running jobs
+            for (const item of local) {
+                if (item.status === 'running') {
+                    currentJobId = item.jobId;
+                    startPolling(item.jobId);
+                    setBanner('loading','<span class="spin"></span>', item.message||'実行中...');
+                    document.getElementById('scrapeBtn').disabled = true;
+                    document.getElementById('scrapeBtn').innerHTML = '<span class="spin"></span> 取得中...';
+                    break;
+                }
+            }
+        } catch(e) { renderHistory(); }
+    }
+    syncFromServer();
     </script>
 </body>
 </html>
