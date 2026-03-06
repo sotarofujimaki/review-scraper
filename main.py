@@ -101,6 +101,25 @@ def get_job_reviews(job_id: str):
 
 
 
+
+
+@app.post("/jobs/{job_id}/retry")
+async def retry_job(job_id: str):
+    """Internal: re-run a failed job on a new instance (same job_id)."""
+    job = db.get_job(job_id)
+    if not job:
+        return JSONResponse(content={"error": "Job not found"}, status_code=404)
+    url = job.get("url", "")
+    source_str = job.get("source", "")
+    try:
+        source = Source(source_str)
+    except ValueError:
+        return JSONResponse(content={"error": f"Invalid source: {source_str}"}, status_code=400)
+    db.update_job(job_id, status=JobStatus.running, message="リトライ開始（新インスタンス）")
+    db.append_log(job_id, "新インスタンスでリトライ開始")
+    asyncio.create_task(_run_scrape(job_id, url, source))
+    return JSONResponse(content={"ok": True, "job_id": job_id}, status_code=202)
+
 @app.post("/jobs/{job_id}/cancel")
 def cancel_job(job_id: str):
     job = db.get_job(job_id)
@@ -158,20 +177,20 @@ async def _run_scrape(job_id: str, url: str, source: Source):
         db.update_job(job_id, status=JobStatus.failed, error=str(e),
                       duration=duration,
                       message=f"エラー: {e}")
-        # 失敗時にインスタンス切り替えリトライ（最大1回）
+        # 失敗時にインスタンス切り替えリトライ（同じjob_id、最大1回）
         job = db.get_job(job_id)
         retry_count = job.get("retry_count", 0) if job else 0
         if retry_count < 1:
-            import httpx, os
             try:
+                import httpx, os
+                db.update_job(job_id, status=JobStatus.running, retry_count=retry_count + 1,
+                              message=f"インスタンス切替リトライ中...")
+                db.append_log(job_id, f"インスタンス切替リトライ (失敗理由: {str(e)[:80]})")
                 port = os.environ.get("PORT", "8080")
-                base = f"http://localhost:{port}"
-                new_job_id = uuid.uuid4().hex[:8]
-                db.create_job(new_job_id, url, source.value)
-                db.update_job(new_job_id, retry_count=retry_count + 1,
-                              message=f"リトライ (元ジョブ: {job_id})")
-                db.append_log(new_job_id, f"インスタンス切替リトライ (元: {job_id}, 失敗理由: {str(e)[:80]})")
-                db.update_job(job_id, message=f"エラー: {e} → リトライ: {new_job_id}")
-                asyncio.create_task(_run_scrape(new_job_id, url, source))
+                # Self-call to get a new instance (concurrency=1)
+                httpx.post(f"http://localhost:{port}/jobs/{job_id}/retry",
+                           json={"url": url, "source": source.value},
+                           timeout=5.0)
             except Exception as retry_err:
                 db.append_log(job_id, f"リトライ失敗: {retry_err}")
+                db.update_job(job_id, status=JobStatus.failed)
