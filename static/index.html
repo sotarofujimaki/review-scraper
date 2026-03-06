@@ -84,6 +84,11 @@
         .link-subtle:hover { color:var(--danger); }
         .empty-state { padding:40px 24px; text-align:center; color:var(--text-tertiary); font-size:14px; }
         .empty-state .empty-icon { font-size:32px; margin-bottom:8px; }
+        .job-logs { display:none; border-top:1px solid var(--border-light); padding:12px 20px; background:var(--bg); max-height:300px; overflow-y:auto; }
+        .job-logs.open { display:block; }
+        .log-entry { display:flex; gap:10px; padding:3px 0; font-size:12px; font-family:'SF Mono',Monaco,monospace; }
+        .log-time { color:var(--text-tertiary); white-space:nowrap; flex-shrink:0; }
+        .log-msg { color:var(--text-secondary); }
         .spin { display:inline-block; width:14px; height:14px; border:2px solid currentColor; border-top-color:transparent; border-radius:50%; animation:sp .7s linear infinite; }
         @keyframes sp { to { transform:rotate(360deg); } }
     </style>
@@ -263,6 +268,7 @@ function render() {
 
         let actions=`<span style="color:var(--text-tertiary)">${ds}</span>`;
         if (st==='done') actions+=` <button class="btn-ghost" onclick="event.stopPropagation();toggleResults('${item.jobId}')">📄 結果</button> <button class="btn-ghost" onclick="event.stopPropagation();downloadCsv('${item.jobId}')">📥 CSV</button> <button class="btn-ghost" onclick="event.stopPropagation();downloadJson('${item.jobId}')">📋 JSON</button>`;
+        actions+=` <button class="btn-ghost" onclick="event.stopPropagation();toggleLogs('${item.jobId}')">📋 ログ</button>`;
         actions+=` <button class="btn-ghost" onclick="event.stopPropagation();removeHistory('${item.jobId}')" style="color:var(--text-tertiary)">🗑</button>`;
 
         return `<div class="job-card">
@@ -288,8 +294,29 @@ function render() {
                     <table><thead><tr><th>投稿者</th><th>評価</th><th>日付</th><th>コメント</th></tr></thead><tbody></tbody></table>
                 </div>
             </div>
+            <div class="job-logs" id="logs-${item.jobId}"></div>
         </div>`;
     }).join('');
+}
+
+// Toggle logs
+async function toggleLogs(jid) {
+    const el = document.getElementById('logs-'+jid);
+    if (!el) return;
+    if (el.classList.contains('open')) { el.classList.remove('open'); return; }
+    el.innerHTML = '<div style="padding:8px;color:var(--text-tertiary)">読み込み中...</div>';
+    el.classList.add('open');
+    try {
+        const res = await fetch('/jobs/'+jid+'/logs');
+        const logs = await res.json();
+        if (!logs.length) { el.innerHTML='<div style="padding:8px;color:var(--text-tertiary)">ログがありません</div>'; return; }
+        el.innerHTML = logs.map(l => {
+            const t = new Date(l.time);
+            const ts = t.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+            return '<div class="log-entry"><span class="log-time">'+ts+'</span><span class="log-msg">'+esc(l.message)+'</span></div>';
+        }).join('');
+        el.scrollTop = el.scrollHeight;
+    } catch(e) { el.innerHTML='<div style="padding:8px;color:var(--danger)">ログ取得失敗</div>'; }
 }
 
 // Sync from server on load

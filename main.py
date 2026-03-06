@@ -84,10 +84,17 @@ def delete_job(job_id: str):
     return JSONResponse(content={"ok": True})
 
 
+@app.get("/jobs/{job_id}/logs")
+def get_job_logs(job_id: str):
+    logs = db.get_logs(job_id)
+    return JSONResponse(content=logs)
+
+
 async def _run_scrape(job_id: str, url: str, source: Source):
     try:
         def progress_callback(count: int, message: str):
             db.update_job(job_id, progress=count, message=message, review_count=count)
+            db.append_log(job_id, message)
 
         if source == Source.gmap:
             reviews = await asyncio.to_thread(scrape_gmap_reviews, url, progress_callback)

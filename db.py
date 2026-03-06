@@ -150,7 +150,44 @@ def delete_job(job_id: str):
     db = _get_db()
     if db:
         doc_ref = db.collection(COLLECTION).document(job_id)
-        # Delete subcollection (reviews)
+        # Delete subcollections (reviews + logs)
         for review in doc_ref.collection("reviews").limit(500).stream():
             review.reference.delete()
+        for log in doc_ref.collection("logs").limit(500).stream():
+            log.reference.delete()
         doc_ref.delete()
+
+
+def append_log(job_id: str, message: str):
+    """Append a timestamped log entry to the job."""
+    from datetime import datetime, timezone
+    entry = {"time": datetime.now(timezone.utc).isoformat(), "message": message}
+
+    # In-memory
+    if job_id in _mem:
+        if "logs" not in _mem[job_id]:
+            _mem[job_id]["logs"] = []
+        _mem[job_id]["logs"].append(entry)
+
+    # Firestore - store as subcollection
+    db = _get_db()
+    if db:
+        db.collection(COLLECTION).document(job_id).collection("logs").add(entry)
+
+
+def get_logs(job_id: str) -> list[dict]:
+    """Get all log entries for a job."""
+    # In-memory first
+    if job_id in _mem and _mem[job_id].get("logs"):
+        return _mem[job_id]["logs"]
+
+    db = _get_db()
+    if db:
+        docs = (
+            db.collection(COLLECTION).document(job_id)
+            .collection("logs")
+            .order_by("time")
+            .stream()
+        )
+        return [d.to_dict() for d in docs]
+    return []
