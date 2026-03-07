@@ -124,10 +124,28 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                         pcb(0, "レストランページでCAPTCHA検出")
                     return
 
-                # 言語フィルタを「All languages」に変更
-                filter_ok = _apply_all_languages_filter()
-                if pcb:
-                    pcb(0, f"言語フィルタ: {'全言語適用' if filter_ok else 'スキップ（モーダル未検出）'}")
+                # 言語フィルタ: .comドメインのみFiltersモーダルで全言語選択
+                # .jpドメインにはFilters UIがない → スキップ
+                current_url = page.evaluate("() => window.location.href")
+                is_dot_com = ".tripadvisor.com/" in current_url
+                filter_ok = False
+                if is_dot_com:
+                    for _filt_attempt in range(3):
+                        filter_ok = _apply_all_languages_filter()
+                        if filter_ok:
+                            if pcb:
+                                pcb(0, f"言語フィルタ: 全言語適用 (試行{_filt_attempt + 1})")
+                            break
+                        if pcb:
+                            pcb(0, f"言語フィルタ試行{_filt_attempt + 1}失敗、リロード...")
+                        page.reload(wait_until="domcontentloaded", timeout=TA_PAGE_TIMEOUT_MS)
+                        page.wait_for_timeout(3000)
+                    if not filter_ok and pcb:
+                        pcb(0, "言語フィルタ: 全試行失敗")
+                else:
+                    filter_ok = True
+                    if pcb:
+                        pcb(0, f"言語フィルタ: 非.comドメイン、スキップ")
 
                 # フィルタ変更後にカード検出
                 cards = query_all_first(page, TRIPADVISOR["review_card"])
@@ -142,8 +160,8 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                     pcb(0, f"レビュー検出OK ({len(cards)}件)、収集開始...")
                     pcb(0, f"ページURL: {actual_url[:100]}")
 
-                # フィルタ未適用の場合はリトライ（フィルタ適用できなければ英語のみになる可能性）
-                if not filter_ok:
+                # .comでフィルタ未適用 → リトライ
+                if is_dot_com and not filter_ok:
                     res["error"] = "FILTER_RETRY"
                     if pcb:
                         pcb(0, "言語フィルタ未適用、セッションリトライ")
