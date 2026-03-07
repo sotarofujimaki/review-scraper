@@ -202,7 +202,7 @@ async def _run_scrape(job_id: str, url: str, source: Source):
         except Exception:
             pass
         # Log every 3rd call to reduce Firestore writes
-        if _progress_counter[0] % 3 == 0 or 'エラー' in message or '完了' in message or '開始' in message or '検出' in message or '🔍' in message:
+        if _progress_counter[0] % 3 == 0 or 'エラー' in message or '完了' in message or '開始' in message or '検出' in message or '🔍' in message or '📸' in message or 'リカバリ' in message:
             try:
                 db.append_log(job_id, message)
             except Exception:
