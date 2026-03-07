@@ -337,12 +337,20 @@ def _start_session(url: str, progress_callback=None, proxy: str | None = None):
 
         time.sleep(random.uniform(GOOGLE_TAB_WAIT_SECONDS, GOOGLE_TAB_WAIT_SECONDS + 3))
 
+        # ページ読み込み完了スクリーンショット
+        gyazo_loaded = upload_screenshot(page, "Google Maps - page loaded")
+        if progress_callback:
+            msg = f"ページ読み込み完了"
+            if gyazo_loaded:
+                msg += f" 📸 {gyazo_loaded}"
+            progress_callback(0, msg)
+
         tabs = page.query_selector_all('button[role="tab"]')
         tab_names = [t.text_content().strip() for t in tabs]
         has_review_tab = any('クチコミ' in n for n in tab_names)
         
-        # Gyazo: ページ読み込み後スクリーンショット
-        gyazo_url = upload_screenshot(page, f"Google Maps - page loaded (tabs: {len(tabs)})")
+        # Gyazo: タブ検出スクリーンショット
+        gyazo_url = upload_screenshot(page, f"Google Maps - tabs detected ({len(tabs)})")
         if progress_callback:
             tab_msg = f"タブ検出: {len(tabs)}個 ({', '.join(tab_names)})"
             if gyazo_url:

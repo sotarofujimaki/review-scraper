@@ -217,6 +217,14 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                         break
                 page.wait_for_timeout(2000)
 
+                # レストランページ読み込み完了スクリーンショット
+                gyazo_loaded = upload_screenshot(page, "TripAdvisor - restaurant page loaded")
+                if pcb:
+                    msg = "レストランページ読み込み完了"
+                    if gyazo_loaded:
+                        msg += f" 📸 {gyazo_loaded}"
+                    pcb(0, msg)
+
                 html2 = page.content()
                 if "captcha-delivery" in html2:
                     res["error"] = "CAPTCHA on restaurant page"
