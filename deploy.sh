@@ -29,6 +29,8 @@ gcloud run deploy "$SERVICE" \
   --timeout 1800 \
   --allow-unauthenticated \
   --concurrency 1 \
+  --max-instances 5 \
+  --update-env-vars "SERVICE_URL=https://review-scraper-kkp4ztvbxa-an.a.run.app,GCP_PROJECT=fujimaki-sandbox-484206" \
   --project "$PROJECT"
 
 # 4. Force traffic to latest revision

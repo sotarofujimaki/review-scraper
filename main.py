@@ -1,12 +1,14 @@
-import os
 """FastAPI web service for scraping reviews from Google Maps and TripAdvisor."""
 import asyncio
+import json
+import os
 import re
 import uuid
 from datetime import datetime, timezone, timedelta
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, FileResponse
+from pydantic import BaseModel
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as StarletteRequest
 
@@ -15,6 +17,23 @@ from models import Source, ScrapeRequest, JobStatus
 from scraper.google import scrape_google_reviews
 from scraper.tripadvisor import scrape_tripadvisor_reviews
 import db
+
+
+def _enqueue_job(job_id: str, url: str, source: str):
+    """Cloud Tasksにジョブをエンキュー"""
+    from google.cloud import tasks_v2
+    from config import CLOUD_TASKS_QUEUE, CLOUD_TASKS_LOCATION, GCP_PROJECT, SERVICE_URL
+    client = tasks_v2.CloudTasksClient()
+    parent = client.queue_path(GCP_PROJECT, CLOUD_TASKS_LOCATION, CLOUD_TASKS_QUEUE)
+    task = {
+        "http_request": {
+            "http_method": tasks_v2.HttpMethod.POST,
+            "url": f"{SERVICE_URL}/worker/run",
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"job_id": job_id, "url": url, "source": source}).encode(),
+        }
+    }
+    client.create_task(parent=parent, task=task)
 
 app = FastAPI(title="Review Scraper API")
 
@@ -79,7 +98,12 @@ async def scrape_async(req: ScrapeRequest):
 
     job_id = uuid.uuid4().hex[:8]
     db.create_job(job_id, req.url, req.source.value)
-    asyncio.create_task(_run_scrape(job_id, req.url, req.source))
+    try:
+        _enqueue_job(job_id, req.url, req.source.value)
+    except Exception as e:
+        # Cloud Tasks失敗時はフォールバックでローカル実行
+        db.append_log(job_id, f"Cloud Tasks エンキュー失敗、ローカル実行: {e}")
+        asyncio.create_task(_run_scrape(job_id, req.url, req.source))
     return JSONResponse(content={"job_id": job_id, "status": JobStatus.running}, status_code=202)
 
 
@@ -147,9 +171,12 @@ async def retry_job(job_id: str):
         source = Source(source_str)
     except ValueError:
         return JSONResponse(content={"error": f"Invalid source: {source_str}"}, status_code=400)
-    db.update_job(job_id, status=JobStatus.running, message="リトライ開始（新インスタンス）")
-    db.append_log(job_id, "新インスタンスでリトライ開始")
-    asyncio.create_task(_run_scrape(job_id, url, source))
+    db.update_job(job_id, status=JobStatus.running, message="リトライ開始")
+    db.append_log(job_id, "リトライ開始")
+    try:
+        _enqueue_job(job_id, url, source_str)
+    except Exception:
+        asyncio.create_task(_run_scrape(job_id, url, source))
     return JSONResponse(content={"ok": True, "job_id": job_id}, status_code=202)
 
 @app.post("/jobs/{job_id}/cancel")
@@ -172,6 +199,30 @@ def delete_job(job_id: str):
 @app.get("/jobs/{job_id}/logs")
 def get_job_logs(job_id: str):
     return JSONResponse(content=db.get_logs(job_id))
+
+
+
+class WorkerRequest(BaseModel):
+    job_id: str
+    url: str
+    source: str
+
+
+@app.post("/worker/run")
+async def worker_run(req: WorkerRequest):
+    """Cloud Tasksから呼ばれるワーカーエンドポイント"""
+    job = db.get_job(req.job_id)
+    if not job:
+        return JSONResponse(content={"error": "Job not found"}, status_code=404)
+    if job.get("status") in (JobStatus.cancelled, "cancelled"):
+        return JSONResponse(content={"ok": True, "skipped": True}, status_code=200)
+    try:
+        source = Source(req.source)
+    except ValueError:
+        return JSONResponse(content={"error": f"Invalid source: {req.source}"}, status_code=400)
+    # 同期的に実行（このリクエスト=このインスタンスで1ジョブだけ）
+    await _run_scrape(req.job_id, req.url, source)
+    return JSONResponse(content={"ok": True, "job_id": req.job_id}, status_code=200)
 
 
 async def _run_scrape(job_id: str, url: str, source: Source):

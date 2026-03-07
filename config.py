@@ -53,3 +53,9 @@ GOOGLE_VIEWPORTS = [
     {"width": 1280, "height": 720},
     {"width": 1600, "height": 900},
 ]
+
+# --- Cloud Tasks ---
+CLOUD_TASKS_QUEUE = os.environ.get("CLOUD_TASKS_QUEUE", "review-scraper-queue")
+CLOUD_TASKS_LOCATION = os.environ.get("CLOUD_TASKS_LOCATION", "asia-northeast1")
+GCP_PROJECT = os.environ.get("GCP_PROJECT", "fujimaki-sandbox-484206")
+SERVICE_URL = os.environ.get("SERVICE_URL", "https://review-scraper-kkp4ztvbxa-an.a.run.app")

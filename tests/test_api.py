@@ -39,7 +39,8 @@ def get_db():
 def test_post_scrape_creates_job(client, monkeypatch):
     """POST /scrape → 202 + job_id が返る。"""
     import main
-    # create_task をモックして実際のスクレイピングを走らせない
+    # _enqueue_job をモックして実際のCloud Tasks呼び出しを走らせない
+    monkeypatch.setattr(main, "_enqueue_job", MagicMock())
     monkeypatch.setattr(main.asyncio, "create_task", MagicMock())
 
     resp = client.post("/scrape", json={"url": "https://maps.google.com/test", "source": "google"})
@@ -69,6 +70,7 @@ def test_post_scrape_duplicate_url(client, monkeypatch):
         "created_at": now,
     }]
 
+    monkeypatch.setattr(main, "_enqueue_job", MagicMock())
     monkeypatch.setattr(main.asyncio, "create_task", MagicMock())
     resp = client.post("/scrape", json={"url": "https://maps.google.com/test", "source": "google"})
     assert resp.status_code == 409
