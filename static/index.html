@@ -65,8 +65,10 @@ body{font-family:'Inter','Noto Sans JP',system-ui,sans-serif;background:var(--bg
 .badge.done{background:var(--success-bg);color:var(--success)}
 .badge.cancelled{background:var(--surface2);color:var(--text-tertiary)}
 .badge.failed{background:var(--danger-bg);color:var(--danger)}
+.badge.queued{background:var(--accent-soft);color:var(--accent)}
 .badge .dot{width:5px;height:5px;border-radius:50%;background:currentColor}
 .badge.running .dot{animation:blink 1.4s ease-in-out infinite}
+.instance-tag{font-size:10px;font-family:var(--mono);color:var(--text-tertiary);background:var(--surface2);padding:2px 6px;border-radius:3px}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
 .job-progress{font-size:12px !important;color:var(--warning);margin-top:6px;display:flex;align-items:center;gap:6px}
 .job-screenshot{margin-top:6px}
@@ -474,7 +476,7 @@ function render(){
         <div class="job-info">
           <div class="job-title"><span class="badge ${st}"><span class="dot"></span>${stLbl}</span> <a href="${esc(j.url)}" target="_blank" onclick="event.stopPropagation()">${esc(j.name)}</a> <span class="src-tag ${j.source}">${srcLabel(j.source)}</span> <code style="font-size:10px;color:var(--text-tertiary);background:var(--surface2);padding:1px 5px;border-radius:3px;cursor:pointer" onclick="event.stopPropagation();navigator.clipboard.writeText('${j.id}');this.textContent='✅ Copied';setTimeout(()=>this.textContent='Job ID: ${j.id}',1200)" title="クリックでコピー">Job ID: ${j.id}</code></div>
           <div class="job-url"><a href="${esc(j.url)}" target="_blank" onclick="event.stopPropagation()">${esc(j.url)}</a></div>
-          <div class="job-stats"><span class="j-stats">${statsHtml}</span></div>
+          <div class="job-stats"><span class="j-stats">${statsHtml}</span>${j.instance ? `<span class="instance-tag" style="border-left:3px solid ${instanceColor(j.instance)}">🖥 ${j.instance}</span>` : ''}</div>
           ${progHtml}${errHtml}
         </div>
         <button class="abtn del" data-del="${j.id}" title="ダブルクリックで削除" onclick="event.stopPropagation()" style="align-self:flex-start;margin-top:2px">🗑</button>
@@ -522,6 +524,13 @@ async function loadLogs(id){const el=document.getElementById('logs-'+id);if(!el)
 
 async function dlCsv(id){let revs=cache[id];if(!revs){try{const r=await fetch("/jobs/"+id+"/reviews");revs=await r.json();if(Array.isArray(revs))cache[id]=revs;else return}catch{return}}if(!revs.length){alert('レビューデータがありません。再スクレイプしてください。');return};const rows=revs.map(r=>[r.review_id,r.author,r.rating,r.posted_at,r.comment].map(v=>'"'+(v||'').replace(/"/g,'""')+'"').join(','));dl(new Blob(['\uFEFF'+'review_id,投稿者,Rating,posted_at,コメント\n'+rows.join('\n')],{type:'text/csv'}),'reviews.csv')}
 async function dlJson(id){let revs=cache[id];if(!revs){try{const r=await fetch("/jobs/"+id+"/reviews");revs=await r.json();if(Array.isArray(revs))cache[id]=revs;else return}catch{return}}if(!revs.length){alert('レビューデータがありません。再スクレイプしてください。');return};dl(new Blob([JSON.stringify(revs,null,2)],{type:'application/json'}),'reviews.json')}
+function instanceColor(name) {
+  if (!name) return 'var(--text-tertiary)';
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue}, 55%, 45%)`;
+}
 async function flushInstances(){try{const r=await fetch('/admin/flush-instances',{method:'POST'});const d=await r.json();if(d.ok){alert(d.count+'件のジョブを停止しました。新規ジョブは最新コードで動きます。');location.reload()}}catch(e){alert('失敗: '+e.message)}}
 async function rerunJob(id){const j=jobs.find(j=>j.id===id);if(!j)return;const url=j.url;if(!url){alert('URLが見つかりません');return}if(j.status==='running'){try{await fetch('/jobs/'+id+'/cancel',{method:'POST'})}catch(e){}}try{const r=await fetch('/scrape',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url,source:j.source})});const d=await r.json();if(d.job_id){jobs.unshift({id:d.job_id,url,source:d.source||j.source,status:'running',review_count:0,message:'開始...',created_at:new Date().toISOString()});render();startPoll(d.job_id)}}catch(e){alert('再実行失敗: '+e.message)}}
 async function cancelJob(id){try{const r=await fetch('/jobs/'+id+'/cancel',{method:'POST'});const d=await r.json();if(d.ok){const j=jobs.find(j=>j.id===id);if(j){j.status='cancelled';j.message='停止'}render()}}catch(e){alert('停止失敗: '+e.message)}}

@@ -47,7 +47,7 @@ def test_post_scrape_creates_job(client, monkeypatch):
     assert resp.status_code == 202
     body = resp.json()
     assert "job_id" in body
-    assert body["status"] == "running"
+    assert body["status"] == "queued"
     get_db().create_job.assert_called_once()
 
 

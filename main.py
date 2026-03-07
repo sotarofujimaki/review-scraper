@@ -98,13 +98,15 @@ async def scrape_async(req: ScrapeRequest):
 
     job_id = uuid.uuid4().hex[:8]
     db.create_job(job_id, req.url, req.source.value)
+    db.update_job(job_id, status=JobStatus.queued, message="キューに追加しました")
     try:
         _enqueue_job(job_id, req.url, req.source.value)
     except Exception as e:
         # Cloud Tasks失敗時はフォールバックでローカル実行
         db.append_log(job_id, f"Cloud Tasks エンキュー失敗、ローカル実行: {e}")
+        db.update_job(job_id, instance=os.environ.get("K_REVISION", "local"))
         asyncio.create_task(_run_scrape(job_id, req.url, req.source))
-    return JSONResponse(content={"job_id": job_id, "status": JobStatus.running}, status_code=202)
+    return JSONResponse(content={"job_id": job_id, "status": JobStatus.queued}, status_code=202)
 
 
 @app.get("/jobs/{job_id}")
@@ -124,6 +126,7 @@ def get_job(job_id: str):
         "duration": job.get("duration"),
         **({"error": job["error"]} if job.get("error") else {}),
         **({"last_screenshot": job["last_screenshot"]} if job.get("last_screenshot") else {}),
+        **({"instance": job["instance"]} if job.get("instance") else {}),
     })
 
 
@@ -221,6 +224,8 @@ async def worker_run(req: WorkerRequest):
     except ValueError:
         return JSONResponse(content={"error": f"Invalid source: {req.source}"}, status_code=400)
     # 同期的に実行（このリクエスト=このインスタンスで1ジョブだけ）
+    revision = os.environ.get("K_REVISION", "local")
+    db.update_job(req.job_id, status=JobStatus.running, instance=revision, message="実行開始")
     await _run_scrape(req.job_id, req.url, source)
     return JSONResponse(content={"ok": True, "job_id": req.job_id}, status_code=200)
 

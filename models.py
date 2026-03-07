@@ -23,6 +23,7 @@ class Review(BaseModel):
 
 
 class JobStatus(str, Enum):
+    queued = "queued"
     running = "running"
     done = "done"
     failed = "failed"
