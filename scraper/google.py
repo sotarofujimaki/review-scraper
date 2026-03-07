@@ -120,7 +120,27 @@ def scrape_google_reviews(url: str, progress_callback=None, review_save_callback
                 time.sleep(random.uniform(5, 15))
 
             page, session = _start_session(url, progress_callback)
-            reviews = _collect_all_reviews(page, session, url, progress_callback, review_save_callback)
+
+            # バックグラウンド30秒スクショスレッド（スクロールループ外でも撮影）
+            _stop_bg_screenshot = threading.Event()
+            def _bg_screenshot_loop():
+                while not _stop_bg_screenshot.is_set():
+                    _stop_bg_screenshot.wait(30)
+                    if _stop_bg_screenshot.is_set():
+                        break
+                    try:
+                        gyazo_url = upload_screenshot(page, f"Google Maps - periodic ({time.strftime('%H:%M:%S')})")
+                        if gyazo_url and progress_callback:
+                            progress_callback(0, f"📸 {gyazo_url}")
+                    except Exception:
+                        pass  # page closed等
+            bg_ss = threading.Thread(target=_bg_screenshot_loop, daemon=True)
+            bg_ss.start()
+
+            try:
+                reviews = _collect_all_reviews(page, session, url, progress_callback, review_save_callback)
+            finally:
+                _stop_bg_screenshot.set()
 
             if reviews:
                 return reviews  # 取れたら即返す

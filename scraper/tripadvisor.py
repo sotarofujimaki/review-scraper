@@ -186,6 +186,22 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                     except Exception:
                         return False
 
+                # バックグラウンド30秒スクショスレッド
+                _stop_bg_ss = threading.Event()
+                def _bg_ss_loop():
+                    while not _stop_bg_ss.is_set():
+                        _stop_bg_ss.wait(30)
+                        if _stop_bg_ss.is_set():
+                            break
+                        try:
+                            gu = upload_screenshot(page, f"TripAdvisor - periodic ({time.strftime('%H:%M:%S')})")
+                            if gu and pcb:
+                                pcb(len(res.get('reviews', [])), f"📸 {gu}")
+                        except Exception:
+                            pass
+                _bg_ss_t = threading.Thread(target=_bg_ss_loop, daemon=True)
+                _bg_ss_t.start()
+
                 html = page.content()
                 if "captcha-delivery" in html:
                     res["error"] = "CAPTCHA on landing page"
