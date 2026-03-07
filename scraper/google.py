@@ -583,6 +583,7 @@ def _collect_all_reviews(
 
     no_new = 0
     last_new_time = time.time()
+    last_screenshot_time = time.time()
 
     if progress_callback:
         progress_callback(len(all_reviews), f"スクロール開始 (最大{GOOGLE_MAX_SCROLLS}回)")
@@ -621,6 +622,13 @@ def _collect_all_reviews(
                 no_new = 0
                 last_new_time = time.time()
                 elapsed = 0
+
+        # 30秒おきにGyazoスクリーンショット
+        if time.time() - last_screenshot_time >= 30:
+            gyazo_url = upload_screenshot(page, f"Google Maps - scrolling ({len(all_reviews)} reviews, scroll {i+1})")
+            last_screenshot_time = time.time()
+            if progress_callback and gyazo_url:
+                progress_callback(len(all_reviews), f"📸 {gyazo_url}")
 
         # 毎スクロール進捗更新
         if progress_callback:
