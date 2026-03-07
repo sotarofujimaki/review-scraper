@@ -72,8 +72,8 @@ body{font-family:'Inter','Noto Sans JP',system-ui,sans-serif;background:var(--bg
 .instance-tag{font-size:10px;font-family:var(--mono);color:var(--text-tertiary);background:var(--surface2);padding:2px 6px;border-radius:3px}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
 .job-progress{font-size:12px !important;color:var(--warning);margin-top:6px;display:flex;align-items:center;gap:6px}
-.job-screenshot{margin-top:6px}
-.job-screenshot img{max-width:280px;max-height:180px;border-radius:6px;border:1px solid var(--border);transition:opacity 0.3s}
+.job-screenshot{margin-top:8px;flex-shrink:0}
+.job-screenshot img{width:200px;height:120px;object-fit:cover;border-radius:6px;border:1px solid var(--border);transition:opacity 0.3s}
 .job-error{font-size:11px;color:var(--danger);margin-top:6px;cursor:pointer}
 .job-error .err-full{display:none}
 .job-error.expanded .err-short{display:none}
@@ -441,12 +441,12 @@ function patchRunning(id,j){
   const badge=card.querySelector('.badge');if(badge){badge.className='badge '+j.status;badge.innerHTML='<span class="dot"></span> '+(j.status==='running'?'実行中':j.status==='queued'?'キュー待ち':j.status==='done'?'完了':j.status==='failed'?'失敗':'停止')}
   const st=card.querySelector('.j-stats');if(st){let h='';if(j.count)h+=j.count+'件 · ';h+=fmtElapsed(Date.now()-new Date(j.time).getTime())+'経過';st.textContent=h}
   const pg=card.querySelector('.j-prog');if(pg)pg.innerHTML='<span class="sp"></span> 進捗: '+fmtMsgText(j.message);
-  // 最新スクリーンショットを進捗エリアに表示（1枚だけ）
+  // 最新スクリーンショットを進捗エリアに表示（1枚だけ、job-info内の固定位置）
   const ssUrl=j.last_screenshot||(j.message&&(j.message.match(/📸\s*(https:\/\/gyazo\.com\/[a-f0-9]+)/)||[])[1]);
-  // 古いスクショを全削除
-  card.querySelectorAll('.job-screenshot').forEach((el,i)=>{if(i>0)el.remove()});
+  // 重複スクショ削除
+  const allSs=card.querySelectorAll('.job-screenshot');allSs.forEach((el,i)=>{if(i>0)el.remove()});
   let ssEl=card.querySelector('.job-screenshot');
-  if(!ssEl&&ssUrl){ssEl=document.createElement('div');ssEl.className='job-screenshot';const pgParent=pg||card.querySelector('.job-info');if(pgParent&&pgParent.parentNode)pgParent.parentNode.insertBefore(ssEl,pgParent.nextSibling)}
+  if(!ssEl&&ssUrl){ssEl=document.createElement('div');ssEl.className='job-screenshot';const info=card.querySelector('.job-info');if(info)info.appendChild(ssEl)}
   if(ssEl&&ssUrl){if(ssEl.dataset.url!==ssUrl){ssEl.dataset.url=ssUrl;ssEl.innerHTML='<a href="'+ssUrl+'" target="_blank"><img src="'+ssUrl+'/raw" loading="lazy"></a>'}}
   if(ssEl&&!ssUrl){ssEl.remove()}
   // インスタンスタグ更新
