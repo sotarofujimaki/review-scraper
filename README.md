@@ -1,119 +1,160 @@
-# Review Scraper API
+# Review Scraper
 
-Google Maps・TripAdvisorのレビューをスクレイピングするFastAPIサービス。
+Google Maps・TripAdvisorの口コミをスクレイピングするWebアプリ。Cloud Run上で動作し、Cloud Tasksによるジョブ並列実行に対応。
+
+## 主な機能
+
+- 🔍 **Google Maps** — 無限スクロール対応、新しい順ソート、スクロールリカバリ
+- 🔍 **TripAdvisor** — DataDome回避、全言語フィルタ、ページネーション対応
+- 📸 **ライブスクショ** — Gyazo連携で30秒おきにスクリーンショット撮影・表示
+- ☁️ **Cloud Tasks並列化** — ジョブごとに別インスタンスで実行（最大10並列）
+- 🖥 **リアルタイムUI** — 進捗・スクショ・インスタンス情報が自動更新
+- 🛡 **ステルス機能** — Scrapling（browserforgeフィンガープリント、WebRTCブロック）
+- 🔄 **自動リトライ** — 最大3回リトライ、Torプロキシ対応
+
+## アーキテクチャ
+
+```
+ブラウザ → Cloud Run (FastAPI)
+              ├─ POST /scrape → Firestore(queued) → Cloud Tasks
+              │                                        ↓
+              │                              POST /worker/run → 新インスタンス
+              │                                        ↓
+              │                              Scrapling (Playwright) → スクレイピング
+              │                                        ↓
+              │                              Firestore (結果保存)
+              ├─ GET /jobs → ポーリング（2秒間隔）
+              └─ GET /jobs/{id}/reviews → 結果取得
+```
 
 ## ファイル構成
 
 ```
 review-scraper/
-├── main.py              # FastAPIアプリ本体。エンドポイント定義・ジョブ管理
-├── config.py            # 全設定値（タイムアウト、リトライ数、Torポートなど）の一元管理
-├── models.py            # PydanticモデルとEnumの定義（ScrapeRequest, Review, JobStatusなど）
-├── css_selectors.py     # CSSセレクターをフォールバック付きで一元管理。サイト変更時はここだけ修正
-├── db.py                # Firestoreを使ったジョブ・レビューのCRUD操作
+├── main.py                  # FastAPIアプリ（エンドポイント定義、ジョブ管理）
+├── config.py                # 設定値（タイムアウト、スクロール設定等）
+├── models.py                # Pydanticモデル（ScrapeRequest, JobStatus等）
+├── db.py                    # Firestore操作（ジョブCRUD、レビュー保存）
+├── css_selectors.py         # CSSセレクタ定義（Google Maps/TripAdvisor）
+├── deploy.sh                # Cloud Runデプロイスクリプト
+├── Dockerfile               # コンテナ定義（Python + Chromium + Tor）
+├── requirements.txt         # 依存パッケージ
+│
 ├── scraper/
-│   ├── google.py        # Google Mapsスクレイパー（Playwright使用）
-│   └── tripadvisor.py   # TripAdvisorスクレイパー（Playwright使用）
+│   ├── google.py            # Google Mapsスクレイパー（StealthySession）
+│   └── tripadvisor.py       # TripAdvisorスクレイパー（StealthyFetcher）
+│
 ├── utils/
-│   ├── tor.py           # Tor接続確認・回線切り替えユーティリティ
-│   └── date_parser.py   # 日本語日付文字列（「1か月前」等）をISO 8601に変換
-└── static/
-    └── index.html       # 管理UI（ジョブ投入・ステータス確認）
+│   ├── gyazo.py             # Gyazoスクリーンショットアップロード
+│   ├── tor.py               # Tor接続チェック・回線リニューアル
+│   └── date_parser.py       # 日付パーサー
+│
+├── static/
+│   ├── index.html           # フロントエンド（SPA、ページネーション付き）
+│   ├── favicon.svg          # ファビコン
+│   └── robots.txt           # 検索エンジンブロック
+│
+├── tests/
+│   ├── conftest.py          # テストフィクスチャ（モックDB/スクレイパー）
+│   ├── test_main.py         # ジョブ実行テスト（成功/リトライ/タイムアウト等）
+│   ├── test_api.py          # APIエンドポイントテスト
+│   ├── test_gyazo.py        # Gyazoアップロードテスト
+│   ├── test_scraper_google.py      # Google URLパース、DOM抽出テスト
+│   └── test_scraper_tripadvisor.py # TripAdvisorドメイン変換、レビュー解析テスト
+│
+├── scripts/
+│   └── create-queue.sh      # Cloud Tasksキュー作成スクリプト
+│
+├── docs/
+│   ├── SCRAPING_RULES.md    # スクレイピングルール
+│   ├── scraping-knowledge.md # ナレッジベース
+│   ├── fix-retry-asyncio.md # リトライ修正の技術記録
+│   └── adr/                 # Architecture Decision Records
+│
+├── .githooks/
+│   └── pre-commit           # pytest自動実行フック
+│
+├── CLAUDE.md                # 開発ルール（テスト方針、デプロイ手順等）
+└── .env                     # 環境変数（GYAZO_ACCESS_TOKEN等）
 ```
 
-## API エンドポイント
+## セットアップ
 
-### `POST /scrape`
+### 必要なもの
 
-スクレイピングジョブを非同期で開始する。
+- Python 3.10+
+- Google Cloud プロジェクト（Firestore, Cloud Run, Cloud Tasks）
+- Gyazo APIトークン（スクリーンショット用、任意）
 
-**リクエスト:**
-```json
-{"url": "https://maps.google.com/...", "source": "google"}
-```
-
-`source` は `"google"` または `"tripadvisor"`。
-
-**レスポンス (202):**
-```json
-{"job_id": "abc12345", "status": "running"}
-```
-
----
-
-### `GET /jobs/{job_id}`
-
-ジョブの状態・進捗を取得する。
-
-**レスポンス:**
-```json
-{
-  "job_id": "abc12345",
-  "status": "done",
-  "progress": 42,
-  "message": "完了: 42件取得",
-  "duration": 38
-}
-```
-
----
-
-### `GET /jobs/{job_id}/reviews`
-
-取得済みレビュー一覧を返す。`?format=csv` でCSV形式にも対応。
-
----
-
-### `GET /jobs`
-
-最近のジョブ一覧を返す。
-
----
-
-### `DELETE /jobs/{job_id}`
-
-ジョブとレビューデータを削除する。
-
----
-
-### `GET /jobs/{job_id}/logs`
-
-スクレイピングの詳細ログを返す（デバッグ用）。
-
----
-
-## ローカル開発
+### ローカル実行
 
 ```bash
 pip install -r requirements.txt
 python -m playwright install chromium
-python -m playwright install-deps chromium
-uvicorn main:app --reload
+
+# 環境変数設定
+cp .env.example .env  # GYAZO_ACCESS_TOKEN等を設定
+
+# 起動
+uvicorn main:app --host 0.0.0.0 --port 8080
 ```
 
-## Docker
+### デプロイ
 
 ```bash
-docker build -t review-scraper .
-docker run -p 8080:8080 review-scraper
+# Cloud Tasksキュー作成（初回のみ）
+bash scripts/create-queue.sh
+
+# Cloud Runにデプロイ
+bash deploy.sh
 ```
 
-## Cloud Run デプロイ
+## API
+
+| メソッド | パス | 説明 |
+|---------|------|------|
+| `POST` | `/scrape` | スクレイピングジョブ開始 |
+| `GET` | `/jobs` | 全ジョブ一覧 |
+| `GET` | `/jobs/{id}` | ジョブ詳細 |
+| `GET` | `/jobs/{id}/reviews` | レビュー結果 |
+| `GET` | `/jobs/{id}/logs` | ジョブログ |
+| `POST` | `/jobs/{id}/cancel` | ジョブ停止 |
+| `DELETE` | `/jobs/{id}` | ジョブ削除 |
+| `POST` | `/worker/run` | ワーカー実行（Cloud Tasks用） |
+
+### スクレイピング開始
 
 ```bash
-gcloud run deploy review-scraper \
-  --source . \
-  --region asia-northeast1 \
-  --allow-unauthenticated \
-  --memory 2Gi \
-  --timeout 300
+curl -X POST https://your-service.run.app/scrape \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://www.google.com/maps/place/...", "source": "google"}'
 ```
 
-## 環境変数
+## 設定値（config.py）
 
-| 変数名 | 説明 | デフォルト |
-|---|---|---|
-| `GOOGLE_PROFILE_BASE` | Playwrightプロファイルの保存先 | `/tmp/google-profiles` |
-| `FIRESTORE_COLLECTION` | Firestoreコレクション名 | `scrape_jobs` |
+| 設定 | 値 | 説明 |
+|------|-----|------|
+| `JOB_TIMEOUT_SECONDS` | 1800 | ジョブタイムアウト（30分） |
+| `GOOGLE_STALL_SECONDS` | 120 | スクロール停滞判定（120秒） |
+| `GOOGLE_MAX_SCROLLS` | 2000 | 最大スクロール回数 |
+| `MAX_OUTER_RETRIES` | 3 | 最大リトライ回数 |
 
-Torが `localhost:9050` で起動していれば自動的にプロキシ経由でリクエストする。
+## テスト
+
+```bash
+# 全テスト実行
+pytest tests/ -q
+
+# pre-commitフック設定
+git config core.hooksPath .githooks
+```
+
+## 技術スタック
+
+- **Backend**: FastAPI + Uvicorn
+- **Scraping**: Scrapling (Playwright + browserforge)
+- **Database**: Google Cloud Firestore
+- **Queue**: Google Cloud Tasks
+- **Hosting**: Google Cloud Run
+- **Screenshots**: Gyazo API
+- **Anti-detection**: Tor, fingerprint randomization, viewport randomization
