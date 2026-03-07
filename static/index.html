@@ -436,6 +436,8 @@ async function pollJob(id){
 }
 function patchRunning(id,j){
   const card=document.querySelector('[data-id="'+id+'"]');if(!card)return;
+  // ステータスバッジ更新
+  const badge=card.querySelector('.badge');if(badge){badge.className='badge '+j.status;badge.innerHTML='<span class="dot"></span> '+(j.status==='running'?'実行中':j.status==='queued'?'キュー待ち':j.status==='done'?'完了':j.status==='failed'?'失敗':'停止')}
   const st=card.querySelector('.j-stats');if(st){let h='';if(j.count)h+=j.count+'件 · ';h+=fmtElapsed(Date.now()-new Date(j.time).getTime())+'経過';st.textContent=h}
   const pg=card.querySelector('.j-prog');if(pg)pg.innerHTML='<span class="sp"></span> 進捗: '+fmtMsgText(j.message);
   // 最新スクリーンショットを進捗エリアに表示
@@ -492,7 +494,7 @@ function render(){
           <div class="job-stats"><span class="j-stats">${statsHtml}</span>${j.instance ? `<span class="instance-tag" style="border-left:3px solid ${instanceColor(j.instance)}">🖥 ${j.instance}</span>` : ''}</div>
           ${progHtml}${errHtml}
         </div>
-        <button class="abtn del" onclick="event.stopPropagation();if(confirm('削除しますか？'))removeJob('${j.id}')" style="align-self:flex-start;margin-top:2px">🗑</button>
+        <button class="abtn del" onclick="event.stopPropagation();removeJob('${j.id}')" style="align-self:flex-start;margin-top:2px">🗑</button>
       </div>
       <div class="job-actions">
         ${st==='running'?`<button class="abtn del" onclick="event.stopPropagation();cancelJob('${j.id}')">⏹停止</button>`:''}<button class="abtn" onclick="event.stopPropagation();rerunJob('${j.id}')">🔄再実行</button><button class="abtn" onclick="showPanel('${j.id}','logs')">📋ログ</button>${st==='done'?`<button class="abtn" onclick="showPanel('${j.id}','results')">結果</button><button class="abtn dl" onclick="dlCsv('${j.id}')">CSV</button><button class="abtn dl" onclick="dlJson('${j.id}')">JSON</button>`:''}
