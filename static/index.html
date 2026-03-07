@@ -443,6 +443,14 @@ function patchRunning(id,j){
   const ssUrl=j.last_screenshot||(j.message&&(j.message.match(/📸\s*(https:\/\/gyazo\.com\/[a-f0-9]+)/)||[])[1]);
   if(!ssEl&&ssUrl){ssEl=document.createElement('div');ssEl.className='job-screenshot';const pgParent=pg||card;pgParent.parentNode.insertBefore(ssEl,pgParent.nextSibling)}
   if(ssEl&&ssUrl){if(ssEl.dataset.url!==ssUrl){ssEl.dataset.url=ssUrl;ssEl.innerHTML='<a href="'+ssUrl+'" target="_blank"><img src="'+ssUrl+'/raw" loading="lazy"></a>'}}
+  // インスタンスタグ更新
+  let itag=card.querySelector('.instance-tag');
+  if(j.instance){
+    if(!itag){itag=document.createElement('span');itag.className='instance-tag';const statsEl=card.querySelector('.job-stats');if(statsEl)statsEl.appendChild(itag)}
+    if(itag){itag.style.borderLeft='3px solid '+instanceColor(j.instance);itag.textContent='🖥 '+j.instance}
+  }
+  // インスタンスサマリー更新
+  updateInstanceSummary(jobs);
 }
 
 function removeJob(id){jobs=jobs.filter(x=>x.id!==id);if(polls[id]){clearInterval(polls[id]);delete polls[id]}delete cache[id];delete openPanels[id];fetch('/jobs/'+id,{method:'DELETE'}).catch(()=>{});render()}
