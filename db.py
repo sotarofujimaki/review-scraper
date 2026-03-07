@@ -101,17 +101,20 @@ def save_review_batch(job_id: str, reviews: list[dict]):
 
 
 def get_job(job_id: str) -> dict | None:
-    # Try in-memory first
-    if job_id in _mem:
-        return _mem[job_id]
-
+    # Always read from Firestore (worker may be on different instance)
     db = _get_db()
     if db:
         doc = db.collection(COLLECTION).document(job_id).get()
         if doc.exists:
             data = doc.to_dict()
             data["job_id"] = job_id
+            # Update in-memory cache
+            _mem[job_id] = data
             return data
+
+    # Fallback to in-memory (no Firestore)
+    if job_id in _mem:
+        return _mem[job_id]
     return None
 
 
