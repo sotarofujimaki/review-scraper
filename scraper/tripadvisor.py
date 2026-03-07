@@ -192,8 +192,12 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                         pcb(0, "トップページでCAPTCHA検出")
                     return
 
+                gyazo_url = upload_screenshot(page, "TripAdvisor - top page OK")
                 if pcb:
-                    pcb(0, "トップページOK、レストランページへ遷移中...")
+                    msg = "トップページOK、レストランページへ遷移中..."
+                    if gyazo_url:
+                        msg += f" 📸 {gyazo_url}"
+                    pcb(0, msg)
 
                 page_url = base.format("")
                 if "?" in page_url:
@@ -229,8 +233,12 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                     for _filt_attempt in range(3):
                         filter_ok = _apply_all_languages_filter()
                         if filter_ok:
+                            gyazo_url = upload_screenshot(page, "TripAdvisor - filter applied")
                             if pcb:
-                                pcb(0, f"言語フィルタ: 全言語適用 (試行{_filt_attempt + 1})")
+                                msg = f"言語フィルタ: 全言語適用 (試行{_filt_attempt + 1})"
+                                if gyazo_url:
+                                    msg += f" 📸 {gyazo_url}"
+                                pcb(0, msg)
                             break
                         if pcb:
                             pcb(0, f"言語フィルタ試行{_filt_attempt + 1}失敗、リロード...")
