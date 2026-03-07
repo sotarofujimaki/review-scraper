@@ -7,6 +7,8 @@ from datetime import datetime, timezone, timedelta
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, FileResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as StarletteRequest
 
 from config import JOB_TIMEOUT_SECONDS, STALE_JOB_MINUTES, DUPLICATE_URL_MINUTES
 from models import Source, ScrapeRequest, JobStatus
