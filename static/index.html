@@ -120,6 +120,14 @@ tr:hover td{background:var(--surface2)}
 .empty{padding:48px 20px;text-align:center;color:var(--text-tertiary);font-size:13px}
 .sp{display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+.pagination{display:flex;gap:4px;justify-content:center;align-items:center;margin-top:12px;font-size:12px}
+.pagination button{padding:4px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text-secondary);cursor:pointer;font-family:inherit;font-size:12px;font-weight:500;transition:all 100ms}
+.pagination button:hover{border-color:var(--accent);color:var(--accent)}
+.pagination button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.pagination button:disabled{opacity:0.3;cursor:default}
+.btn-sm{padding:5px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:transparent;color:var(--text-secondary);cursor:pointer;font-family:inherit;font-size:11px;font-weight:600;transition:all 120ms}
+.btn-sm.stop:hover{border-color:var(--warning);color:var(--warning)}
+.btn-sm.del-all:hover{border-color:var(--danger);color:var(--danger)}
 .api-section{margin-bottom:24px}
 .api-section h2{font-size:18px;font-weight:800;margin-bottom:6px;letter-spacing:-0.02em}
 .api-section h3{font-size:11px;font-weight:700;margin:16px 0 8px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em}
@@ -162,7 +170,7 @@ tr:hover td{background:var(--surface2)}
     </div>
     <div class="sec-header" id="secHeader" style="display:none">
       <h3>履歴</h3>
-      <div style="display:flex;gap:6px"><button class="btn-sm" onclick="stopAll()">すべて停止</button><button class="btn-sm" onclick="clearAll()">すべて削除</button></div>
+      <div style="display:flex;gap:6px"><button class="btn-sm stop" onclick="stopAll()">⏹ すべて停止</button><button class="btn-sm del-all" onclick="clearAll()">🗑 すべて削除</button></div>
 
     </div>
     <div class="job-list" id="jobList"><div class="empty">URLを入力して取得開始</div></div>
@@ -373,8 +381,9 @@ if s["status"] == "done":
 function switchTab(t){document.querySelectorAll('.page-tab').forEach(e=>e.classList.remove('active'));document.querySelectorAll('.tab-content').forEach(e=>e.classList.remove('active'));document.querySelector('.page-tab[onclick*="'+t+'"]').classList.add('active');document.getElementById('tab-'+t).classList.add('active')}
 function cpCode(b){navigator.clipboard.writeText(b.parentElement.textContent.replace('Copy','').trim());b.textContent='✓';setTimeout(()=>b.textContent='Copy',1200)}
 
-const PAGE_SIZE=20;
+const PAGE_SIZE=10;
 let currentPage=1;
+let resultPages={};
 let src='google', polls={}, jobs=[], cache={}, openPanels={};
 function pickSrc(el){document.querySelectorAll('.source-opt').forEach(b=>b.classList.remove('active'));el.classList.add('active');src=el.dataset.source}
 document.getElementById('url').addEventListener('input',function(){if(this.value.includes('tripadvisor'))pickSrc(document.querySelector('[data-source="tripadvisor"]'));else if(this.value.match(/google|goo\.gl|share\.google/))pickSrc(document.querySelector('[data-source="google"]'))});
@@ -486,11 +495,8 @@ function render(){
     </div>`
   }).join('');
   if(totalPages>1){
-    let nav='<div class="page-nav">';
-    if(currentPage>1)nav+='<span class="page-btn" onclick="goPage('+(currentPage-1)+')">← 前</span>';
-    nav+='<span class="page-info">'+currentPage+' / '+totalPages+'</span>';
-    if(currentPage<totalPages)nav+='<span class="page-btn" onclick="goPage('+(currentPage+1)+')">次 →</span>';
-    nav+='</div>';list.insertAdjacentHTML('beforeend',nav)}
+    const pg=makePagination(currentPage,totalPages,'goPage');
+    list.insertAdjacentHTML('beforeend',pg);}
   for(const[id,mode] of Object.entries(openPanels)){if(mode==='results')loadResults(id);if(mode==='logs')loadLogs(id)}
 }
 function goPage(p){currentPage=p;render();window.scrollTo(0,document.getElementById('jobList').offsetTop-20)}
@@ -498,7 +504,19 @@ function goPage(p){currentPage=p;render();window.scrollTo(0,document.getElementB
 function showPanel(id,mode){if(openPanels[id]===mode){delete openPanels[id];render();return}openPanels[id]=mode;render()}
 function switchDetail(id,mode){openPanels[id]=mode;render()}
 
-async function loadResults(id){const tbody=document.getElementById('tbody-'+id);if(!tbody)return;if(!cache[id]){try{const r=await fetch('/jobs/'+id+'/reviews');const d=await r.json();if(Array.isArray(d))cache[id]=d}catch{}}const revs=cache[id]||[];if(!revs.length){tbody.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--text-tertiary);padding:20px">レビューデータなし</td></tr>';return}tbody.innerHTML=revs.map(r=>`<tr><td data-label="投稿者"><strong>${esc(r.author||'—')}</strong></td><td data-label="評価">${stars(r.rating)}</td><td data-label="日付" style="white-space:nowrap;color:var(--text-tertiary);font-size:11px">${esc(r.posted_at)}</td><td data-label="コメント" class="comment">${esc(r.comment||'（コメントなし）')}</td></tr>`).join('')}
+const REV_PAGE_SIZE=20;
+function makePagination(cur,total,fn,extra){
+  let h='<div class="pagination">';
+  h+='<button '+(cur<=1?'disabled':'')+' onclick="'+fn+'('+(cur-1)+(extra?','+extra:'')+')">«</button>';
+  let start=Math.max(1,cur-2),end=Math.min(total,cur+2);
+  if(start>1){h+='<button onclick="'+fn+'(1'+(extra?','+extra:'')+')">1</button>';if(start>2)h+='<button disabled>…</button>';}
+  for(let i=start;i<=end;i++)h+='<button class="'+(i===cur?'active':'')+'" onclick="'+fn+'('+i+(extra?','+extra:'')+')">'+i+'</button>';
+  if(end<total){if(end<total-1)h+='<button disabled>…</button>';h+='<button onclick="'+fn+'('+total+(extra?','+extra:'')+')">'+total+'</button>';}
+  h+='<button '+(cur>=total?'disabled':'')+' onclick="'+fn+'('+(cur+1)+(extra?','+extra:'')+')">»</button>';
+  h+='</div>';return h;
+}
+function goResultPage(id,p){resultPages[id]=p;loadResults(id);}
+async function loadResults(id){const tbody=document.getElementById('tbody-'+id);if(!tbody)return;if(!cache[id]){try{const r=await fetch('/jobs/'+id+'/reviews');const d=await r.json();if(Array.isArray(d))cache[id]=d}catch{}}const revs=cache[id]||[];if(!revs.length){tbody.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--text-tertiary);padding:20px">レビューデータなし</td></tr>';return}const rp=resultPages[id]||1;const rTotal=Math.ceil(revs.length/REV_PAGE_SIZE);if(rp>rTotal)resultPages[id]=rTotal;const page=resultPages[id]||1;const slice=revs.slice((page-1)*REV_PAGE_SIZE,page*REV_PAGE_SIZE);tbody.innerHTML=slice.map(r=>`<tr><td data-label="投稿者"><strong>${esc(r.author||'—')}</strong></td><td data-label="評価">${stars(r.rating)}</td><td data-label="日付" style="white-space:nowrap;color:var(--text-tertiary);font-size:11px">${esc(r.posted_at)}</td><td data-label="コメント" class="comment">${esc(r.comment||'（コメントなし）')}</td></tr>`).join('');const wrap=document.querySelector('#results-'+id+' .table-wrap');if(wrap&&rTotal>1){let paginEl=wrap.nextElementSibling;if(!paginEl||!paginEl.classList.contains('pagination')){paginEl=null;}if(paginEl)paginEl.remove();wrap.insertAdjacentHTML('afterend',makePagination(page,rTotal,'goResultPage',"'"+id+"'"))}}
 
 async function loadLogs(id){const el=document.getElementById('logs-'+id);if(!el)return;try{const r=await fetch('/jobs/'+id+'/logs');const logs=await r.json();if(!logs.length){el.innerHTML='<div style="color:var(--text-tertiary);font-size:11px;padding:4px">ログなし</div>';return}el.innerHTML=logs.map(l=>{const t=new Date(l.time);return`<div class="log-line"><span class="log-t">${t.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span><span class="log-m">${fmtMsg(l.message)}</span></div>`}).join('');el.scrollTop=el.scrollHeight}catch{el.innerHTML='<div style="color:var(--danger);font-size:11px">取得失敗</div>'}}
 
