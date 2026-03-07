@@ -376,6 +376,7 @@ function pickSrc(el){document.querySelectorAll('.source-opt').forEach(b=>b.class
 document.getElementById('url').addEventListener('input',function(){if(this.value.includes('tripadvisor'))pickSrc(document.querySelector('[data-source="tripadvisor"]'));else if(this.value.match(/google|goo\.gl|share\.google/))pickSrc(document.querySelector('[data-source="google"]'))});
 
 function esc(s){return s?s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/`/g,'&#96;').replace(/\$/g,'&#36;'):''}
+function fmtMsg(s){if(!s)return'';let h=esc(s);h=h.replace(/📸\s*(https:\/\/gyazo\.com\/[a-f0-9]+)/g,'<br><a href="$1" target="_blank"><img src="$1/raw" style="max-width:320px;max-height:200px;border-radius:6px;margin:4px 0;border:1px solid var(--border)" loading="lazy"></a>');return h}
 function extractName(u){if(!u)return'不明';try{let m=u.match(/\/maps\/place\/([^/@]+)/);if(m)return decodeURIComponent(m[1].replace(/\+/g,' '));m=u.match(/Reviews-([^-]+(?:-[^-]+)*?)-[A-Za-z]/);if(m)return decodeURIComponent(m[1].replace(/_/g,' '))}catch{}return u.substring(0,40)+'…'}
 function fmtDur(s){if(!s&&s!==0)return'';if(s<60)return s+'秒';return Math.floor(s/60)+'分'+(s%60?s%60+'秒':'')}
 function fmtCost(sec){if(!sec)return'';const usd=sec*0.0000530;if(usd<0.01)return'$'+usd.toFixed(4);return'$'+usd.toFixed(3)}
@@ -410,7 +411,7 @@ async function pollJob(id){
 function patchRunning(id,j){
   const card=document.querySelector('[data-id="'+id+'"]');if(!card)return;
   const st=card.querySelector('.j-stats');if(st){let h='';if(j.count)h+=j.count+'件 · ';h+=fmtElapsed(Date.now()-new Date(j.time).getTime())+'経過';st.textContent=h}
-  const pg=card.querySelector('.j-prog');if(pg)pg.innerHTML='<span class="sp"></span> '+esc(j.message)
+  const pg=card.querySelector('.j-prog');if(pg)pg.innerHTML='<span class="sp"></span> '+fmtMsg(j.message)
 }
 
 function removeJob(id){jobs=jobs.filter(x=>x.id!==id);if(polls[id]){clearInterval(polls[id]);delete polls[id]}delete cache[id];delete openPanels[id];fetch('/jobs/'+id,{method:'DELETE'}).catch(()=>{});render()}
@@ -431,7 +432,7 @@ function render(){
     if(st==='failed'&&j.duration!=null){statsHtml+=(statsHtml?' · ':'')+fmtDur(j.duration)}
 
     let progHtml='';
-    if(st==='running'&&j.message)progHtml=`<div class="job-progress j-prog"><span class="sp"></span> ${esc(j.message)}</div>`;
+    if(st==='running'&&j.message)progHtml=`<div class="job-progress j-prog"><span class="sp"></span> ${fmtMsg(j.message)}</div>`;
     let errHtml='';
     if(st==='failed'&&j.error){const s=j.error.length>80?j.error.substring(0,80)+'…':j.error;errHtml=`<div class="job-error" onclick="event.stopPropagation();this.classList.toggle('expanded')">⚠️ <span class="err-short">${esc(s)}</span><span class="err-full">${esc(j.error)}</span></div>`}
 
@@ -477,7 +478,7 @@ function switchDetail(id,mode){openPanels[id]=mode;render()}
 
 async function loadResults(id){const tbody=document.getElementById('tbody-'+id);if(!tbody)return;if(!cache[id]){try{const r=await fetch('/jobs/'+id+'/reviews');const d=await r.json();if(Array.isArray(d))cache[id]=d}catch{}}const revs=cache[id]||[];if(!revs.length){tbody.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--text-tertiary);padding:20px">レビューデータなし</td></tr>';return}tbody.innerHTML=revs.map(r=>`<tr><td data-label="投稿者"><strong>${esc(r.author||'—')}</strong></td><td data-label="評価">${stars(r.rating)}</td><td data-label="日付" style="white-space:nowrap;color:var(--text-tertiary);font-size:11px">${esc(r.posted_at)}</td><td data-label="コメント" class="comment">${esc(r.comment||'（コメントなし）')}</td></tr>`).join('')}
 
-async function loadLogs(id){const el=document.getElementById('logs-'+id);if(!el)return;try{const r=await fetch('/jobs/'+id+'/logs');const logs=await r.json();if(!logs.length){el.innerHTML='<div style="color:var(--text-tertiary);font-size:11px;padding:4px">ログなし</div>';return}el.innerHTML=logs.map(l=>{const t=new Date(l.time);return`<div class="log-line"><span class="log-t">${t.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span><span class="log-m">${esc(l.message)}</span></div>`}).join('');el.scrollTop=el.scrollHeight}catch{el.innerHTML='<div style="color:var(--danger);font-size:11px">取得失敗</div>'}}
+async function loadLogs(id){const el=document.getElementById('logs-'+id);if(!el)return;try{const r=await fetch('/jobs/'+id+'/logs');const logs=await r.json();if(!logs.length){el.innerHTML='<div style="color:var(--text-tertiary);font-size:11px;padding:4px">ログなし</div>';return}el.innerHTML=logs.map(l=>{const t=new Date(l.time);return`<div class="log-line"><span class="log-t">${t.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span><span class="log-m">${fmtMsg(l.message)}</span></div>`}).join('');el.scrollTop=el.scrollHeight}catch{el.innerHTML='<div style="color:var(--danger);font-size:11px">取得失敗</div>'}}
 
 async function dlCsv(id){let revs=cache[id];if(!revs){try{const r=await fetch("/jobs/"+id+"/reviews");revs=await r.json();if(Array.isArray(revs))cache[id]=revs;else return}catch{return}}if(!revs.length){alert('レビューデータがありません。再スクレイプしてください。');return};const rows=revs.map(r=>[r.review_id,r.author,r.rating,r.posted_at,r.comment].map(v=>'"'+(v||'').replace(/"/g,'""')+'"').join(','));dl(new Blob(['\uFEFF'+'review_id,投稿者,Rating,posted_at,コメント\n'+rows.join('\n')],{type:'text/csv'}),'reviews.csv')}
 async function dlJson(id){let revs=cache[id];if(!revs){try{const r=await fetch("/jobs/"+id+"/reviews");revs=await r.json();if(Array.isArray(revs))cache[id]=revs;else return}catch{return}}if(!revs.length){alert('レビューデータがありません。再スクレイプしてください。');return};dl(new Blob([JSON.stringify(revs,null,2)],{type:'application/json'}),'reviews.json')}
