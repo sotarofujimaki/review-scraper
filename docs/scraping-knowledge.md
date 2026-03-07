@@ -85,3 +85,34 @@
 - `_cleanup_heavy_elements()` でDOM内の画像/SVG/canvasを定期削除
 - 1000件超えるとブラウザがクラッシュしやすい（4GiB推奨）
 - レビューは `review_save_callback` でインクリメンタルに保存
+
+### 言語フィルタ（2026-03-07 追加）
+
+TripAdvisorは各国ドメインでその言語のレビューのみ表示する:
+- `.com` → English-only（`Filters (1)` が付く）
+- `.jp` → Japanese-only（フィルタUIなし）
+
+**全言語取得の方法**（`.com`ドメインで）:
+1. `[aria-label*="filter"]` を `dispatchEvent(new MouseEvent('click'))` でクリック
+2. `[role="dialog"]` のモーダルが開く
+3. `English` ボタンを Playwright `click(force=True)` で解除
+4. `All languages` の `role="option"` を `click(force=True)` で選択
+5. `Apply` ボタンをクリック
+
+**注意点**:
+- Brazeマーケティングモーダル（`.ab-iam-root`）が干渉 → 操作前に `remove()`
+- `dispatchEvent` は成功率50%程度 → `FILTER_RETRY` でリトライ必須
+- Playwright `click()` vs JS native `element.click()` でSPA遷移の挙動が異なる
+- ページネーションは `page.evaluate(() => a.click())` を使う（`click(force=True)` はDOM更新されない）
+- `page.goto` でページ遷移するとフィルタがリセットされる
+
+### Playwright click vs JS native click
+
+| 操作 | Playwright `click(force=True)` | JS `element.click()` |
+|------|------|------|
+| フィルタボタン | ❌ モーダル開かない | — |
+| `dispatchEvent` | — | ✅ モーダル開く（50%） |
+| English解除 | ✅ React状態更新 | ❌ 状態更新されない |
+| 次へボタン | ❌ DOM更新されない | ✅ SPA遷移発火 |
+
+**原則**: React SPAのリンク遷移は JS native click、ボタン操作は Playwright click(force=True)。
