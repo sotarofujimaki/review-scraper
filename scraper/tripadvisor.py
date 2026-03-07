@@ -142,6 +142,13 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                     pcb(0, f"レビュー検出OK ({len(cards)}件)、収集開始...")
                     pcb(0, f"ページURL: {actual_url[:100]}")
 
+                # フィルタ未適用の場合はリトライ（フィルタ適用できなければ英語のみになる可能性）
+                if not filter_ok:
+                    res["error"] = "FILTER_RETRY"
+                    if pcb:
+                        pcb(0, "言語フィルタ未適用、セッションリトライ")
+                    return
+
                 all_reviews = []
                 seen_ids = set()
                 page_num = 0
@@ -166,6 +173,9 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
 
                     new_batch = []
                     parse_fails = 0
+                    if pcb and page_num > 0 and cards:
+                        first_text = (cards[0].text_content() or '')[:60]
+                        pcb(len(all_reviews), f"ページ{page_num+1} 先頭カード: {first_text}")
                     for ci, card in enumerate(cards):
                         review = _parse_review_card(card)
                         if review:
@@ -188,8 +198,14 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                                 if pcb:
                                     pcb(len(all_reviews), f"パース失敗 card[{ci}]: デバッグ取得エラー: {dbg_e}")
                     new_count = len(new_batch)
-                    if pcb and parse_fails:
-                        pcb(len(all_reviews), f"パース結果: 成功{new_count} 失敗{parse_fails}/{len(cards)}")
+                    dedup_count = len(cards) - new_count - parse_fails
+                    if pcb:
+                        if parse_fails or dedup_count:
+                            parts = []
+                            if new_count: parts.append(f"成功{new_count}")
+                            if dedup_count: parts.append(f"重複スキップ{dedup_count}")
+                            if parse_fails: parts.append(f"失敗{parse_fails}")
+                            pcb(len(all_reviews), f"パース結果: {' / '.join(parts)} (全{len(cards)}件)")
 
                     if rsc and new_batch:
                         if pcb:
@@ -216,27 +232,41 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                     if page_num >= TA_MAX_PAGES:
                         break
 
-                    offset = f"-or{page_num * TA_REVIEWS_PER_PAGE}"
-                    next_url = base.format(offset)
-                    if "?" in next_url:
-                        next_url += "&filterLang=ALL"
-                    else:
-                        next_url += "?filterLang=ALL"
-                    if pcb:
-                        pcb(len(all_reviews), f"ページ{page_num + 1}: filterLang=ALL 適用済み")
-                    if pcb:
-                        pcb(len(all_reviews), f"ページ{page_num + 1}へ遷移中... ({next_url[-30:]})")
+                    # 「次へ」ボタンクリック（SPA内遷移でフィルタ維持）
+                    nxt = page.query_selector('a[aria-label*="Next"], a[aria-label*="次"]')
+                    if not nxt:
+                        if pcb:
+                            pcb(len(all_reviews), f"次へボタンなし、収集完了 ({len(all_reviews)}件)")
+                        break
                     try:
-                        page.goto(next_url, wait_until="domcontentloaded", timeout=TA_PAGE_TIMEOUT_MS)
-                        page.wait_for_timeout(2000)
-                        # ページ遷移後にフィルタ再適用
-                        _apply_all_languages_filter()
+                        if pcb:
+                            pcb(len(all_reviews), f"ページ{page_num + 1}へ遷移中...")
+                        # JS native click でSPA遷移（Playwright click()はSPA遷移を発火しない）
+                        page.evaluate("""() => {
+                            const a = document.querySelector('a[aria-label*="Next"], a[aria-label*="次"]');
+                            if (a) a.click();
+                        }""")
+                        page.wait_for_timeout(5000)
                         card_found = False
                         for _w in range(TA_CARD_WAIT_SECONDS):
                             page.wait_for_timeout(1000)
                             if query_first(page, TRIPADVISOR["review_card"]):
                                 card_found = True
                                 break
+                        if not card_found:
+                            if pcb:
+                                pcb(len(all_reviews), f"ページ{page_num + 1}: カード未検出、終了")
+                            break
+                        page.wait_for_timeout(1000)
+                        html_next = page.content()
+                        if "captcha-delivery" in html_next:
+                            if pcb:
+                                pcb(len(all_reviews), f"ページ{page_num + 1}でCAPTCHA、収集終了")
+                            break
+                    except Exception as e:
+                        if pcb:
+                            pcb(len(all_reviews), f"ページ{page_num + 1}取得失敗: {e}")
+                        break
                         if not card_found and pcb:
                             pcb(len(all_reviews), f"ページ{page_num + 1}: カード未検出、終了")
                         if not card_found:
