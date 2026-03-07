@@ -665,14 +665,19 @@ def _collect_all_reviews(
                 elapsed = 0
 
         # 30秒おきにGyazoスクリーンショット
+        _did_30s = False
         if time.time() - last_screenshot_time >= 30:
             gyazo_url = upload_screenshot(page, f"Google Maps - scrolling ({len(all_reviews)} reviews, scroll {i+1})")
             last_screenshot_time = time.time()
-            if progress_callback and gyazo_url:
-                progress_callback(len(all_reviews), f"🔍 30秒チェック: {len(all_reviews)}件収集中 (経過{int(time.time()-start_time)}秒, scroll {i+1}) 📸 {gyazo_url}")
+            msg_30 = f"🔍 30秒チェック: {len(all_reviews)}件収集中 (経過{int(time.time()-start_time)}秒, scroll {i+1})"
+            if gyazo_url:
+                msg_30 += f" 📸 {gyazo_url}"
+            if progress_callback:
+                progress_callback(len(all_reviews), msg_30)
+            _did_30s = True
 
-        # 毎スクロール進捗更新
-        if progress_callback:
+        # 毎スクロール進捗更新（30秒チェック直後はスキップ）
+        if progress_callback and not _did_30s:
             if elapsed > 0:
                 remaining = max(0, GOOGLE_STALL_SECONDS - elapsed)
                 progress_callback(len(all_reviews), f"スクロール中... {len(all_reviews)}件 (新規なし {elapsed}秒/{GOOGLE_STALL_SECONDS}秒, scroll {i+1})")

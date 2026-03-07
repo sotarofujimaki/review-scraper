@@ -379,13 +379,18 @@ def scrape_tripadvisor_reviews(url: str, progress_callback=None, review_save_cal
                         pcb(len(all_reviews), f"パース結果: 全{len(cards)}件失敗（new_batch空）")
 
                     # 30秒おきにGyazoスクリーンショット
+                    _did_30s_ta = False
                     if time.time() - last_screenshot_time >= 30:
                         gyazo_url = upload_screenshot(page, f"TripAdvisor - page {page_num+1} ({len(all_reviews)} reviews)")
                         last_screenshot_time = time.time()
-                        if pcb and gyazo_url:
-                            elapsed_sec = int(time.time() - st) if st else 0
-                            pcb(len(all_reviews), f"🔍 30秒チェック: {len(all_reviews)}件収集中 (ページ{page_num+1}, 経過{elapsed_sec}秒) 📸 {gyazo_url}")
-                    if pcb:
+                        elapsed_sec = int(time.time() - st) if st else 0
+                        msg_30 = f"🔍 30秒チェック: {len(all_reviews)}件収集中 (ページ{page_num+1}, 経過{elapsed_sec}秒)"
+                        if gyazo_url:
+                            msg_30 += f" 📸 {gyazo_url}"
+                        if pcb:
+                            pcb(len(all_reviews), msg_30)
+                        _did_30s_ta = True
+                    if pcb and not _did_30s_ta:
                         pcb(len(all_reviews), f"ページ{page_num + 1}: {new_count}件取得 (合計{len(all_reviews)}件)")
 
                     if new_count == 0:
