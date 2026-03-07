@@ -398,6 +398,7 @@ def _start_session(url: str, progress_callback=None, proxy: str | None = None):
         # ページ読み込み完了スクリーンショット
         gyazo_loaded = upload_screenshot(page, "Google Maps - page loaded")
         if progress_callback:
+            progress_callback(0, f"スクショ結果: {gyazo_loaded or 'FAILED'}")
             msg = f"ページ読み込み完了"
             if gyazo_loaded:
                 msg += f" 📸 {gyazo_loaded}"

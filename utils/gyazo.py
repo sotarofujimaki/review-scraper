@@ -14,6 +14,7 @@ GYAZO_ACCESS_TOKEN = os.environ.get("GYAZO_ACCESS_TOKEN", "")
 def upload_screenshot(page, title: str = "") -> str | None:
     """Take a screenshot and upload to Gyazo. Returns the Gyazo URL or None."""
     if not GYAZO_ACCESS_TOKEN:
+        logger.warning("Gyazo: no access token")
         return None
     try:
         png_bytes = page.screenshot(type="png", full_page=False)
@@ -51,5 +52,5 @@ def upload_screenshot(page, title: str = "") -> str | None:
             logger.info(f"Gyazo upload OK: {url}")
             return url
     except Exception as e:
-        logger.warning(f"Gyazo upload failed: {e}")
+        logger.warning(f"Gyazo upload failed: {type(e).__name__}: {e}")
         return None
