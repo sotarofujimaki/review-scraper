@@ -221,10 +221,14 @@ async def _run_scrape(job_id: str, url: str, source: Source):
                           message=f"リトライ中... ({attempt}/{MAX_OUTER_RETRIES - 1})")
             db.append_log(job_id, f"リトライ {attempt}/{MAX_OUTER_RETRIES - 1} (前回: {str(last_error)[:80]})")
         try:
-            reviews = await asyncio.wait_for(
-                asyncio.to_thread(scraper, url, on_progress, on_reviews),
-                timeout=JOB_TIMEOUT_SECONDS,
-            )
+            # 毎回新しいスレッドで実行（Playwright Sync APIがasyncioイベントループを検出するのを防ぐ）
+            import concurrent.futures
+            loop = asyncio.get_event_loop()
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                reviews = await asyncio.wait_for(
+                    loop.run_in_executor(pool, scraper, url, on_progress, on_reviews),
+                    timeout=JOB_TIMEOUT_SECONDS,
+                )
             if reviews:
                 db.update_job(job_id, status=JobStatus.done, progress=len(reviews),
                               duration=int(_time.time() - start),
